@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/header :: header}"></head>
+<body>
+	<div class="container">
+		<h1>메인 페이지</h1>
+		<div th:text="${message}"></div>
+	</div>
+
+	<!-- 데이터를 표시할 컨테이너 -->
+	<div id="dataContainer"></div>
+
+	<!-- 또는 -->
+	<div class="data-item"></div>
+
+	<!-- jQuery는 header.html에서 이미 로드됨 -->
+	<!-- 커스텀 JS는 body 끝 부분에 로드 -->
+	<script th:src="@{/js/main.js}"></script>
+</body>
+</html>

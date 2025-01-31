@@ -1,0 +1,121 @@
+/* 전체 리셋 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+/* 컨테이너 스타일 */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 제목 스타일 */
+h1 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 2.5em;
+    padding: 20px 0;
+    border-bottom: 2px solid #eee;
+}
+
+/* 메시지 스타일 */
+div[th\:text] {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin: 20px 0;
+    text-align: center;
+    font-size: 1.2em;
+    color: #3498db;
+}
+
+/* 버튼 스타일 */
+#loadButton {
+    display: block;
+    width: 200px;
+    margin: 20px auto;
+    padding: 12px 24px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#loadButton:hover {
+    background-color: #2980b9;
+}
+
+#loadButton:active {
+    transform: translateY(1px);
+}
+
+/* 데이터 컨테이너 스타일 */
+#dataContainer {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-top: 20px;
+}
+
+#dataContainer p {
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+#dataContainer ul {
+    list-style-type: none;
+    padding: 15px;
+}
+
+#dataContainer li {
+    padding: 8px;
+    margin: 5px 0;
+    background-color: #f8f9fa;
+    border-radius: 3px;
+    border-left: 3px solid #3498db;
+}
+
+/* 에러 메시지 스타일 */
+.error {
+    color: #e74c3c;
+    padding: 10px;
+    background-color: #fde8e8;
+    border-left: 4px solid #e74c3c;
+    margin: 10px 0;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    h1 {
+        font-size: 2em;
+    }
+    
+    #loadButton {
+        width: 100%;
+    }
+    
+    div[th\:text], 
+    #dataContainer {
+        font-size: 1em;
+    }
+}

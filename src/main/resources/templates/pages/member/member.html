@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{layout/header :: header}" />
+    <!-- 페이지별 CSS -->
+    <link rel="stylesheet" href="/css/pages/member/member.css">
+</head>
+<body>
+    <div class="container">
+        <h1>회원 관리</h1>
+        
+        <div class="section">
+            <div id="memberList">
+                <div class="search-area">
+                    <select id="searchType" class="search-select">
+                        <option value="id">ID</option>
+                        <option value="name">이름</option>
+                        <option value="email">이메일</option>
+                    </select>
+                    <input type="text" id="searchKeyword" placeholder="입력값" class="search-input">
+                    <button id="searchBtn" class="btn-primary">검색</button>
+                </div>
+                <table class="member-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>이름</th>
+                            <th>이메일</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 동적 데이터 추가 영역 -->
+                    </tbody>
+                </table>
+                <div class="table-actions">
+                    <button id="addMemberBtn" class="btn-primary">추가</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 회원 추가/수정 모달 -->
+    <div id="memberModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">회원 추가</h2>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="memberId">ID</label>
+                    <input type="text" id="memberId" placeholder="ID">
+                </div>
+                <div class="input-group">
+                    <label for="memberName">이름</label>
+                    <input type="text" id="memberName" placeholder="이름">
+                </div>
+                <div class="input-group">
+                    <label for="memberEmail">이메일</label>
+                    <input type="text" id="memberEmail" placeholder="이메일">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveBtn" class="btn-primary">저장</button>
+                <button id="deleteBtn" class="btn-danger">삭제</button>
+                <button id="cancelBtn" class="btn-secondary">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/pages/member/member.js"></script>
+</body>
+</html>

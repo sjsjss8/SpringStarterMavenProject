@@ -1,0 +1,158 @@
+# application.yaml (공통 설정)
+spring:
+  profiles:
+    active: local # 기본 환경 선택 (local, dev, prod)
+
+# 공통 설정
+mybatis:
+  mapper-locations: classpath:/static/mybatis/mapper/**/*.xml
+  type-aliases-package: com.example.demo.domain
+  configuration:
+    map-underscore-to-camel-case: true
+    jdbc-type-for-null: NULL
+    call-setters-on-nulls: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    groups-order: DESC
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /api-docs
+
+---
+# application-local.yaml (로컬 환경)
+spring:
+  application:
+    name: SpringStarterMavenProject
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration  # 세션 자동 구성 제외
+  config:
+    activate:
+      on-profile: local
+    
+  # DB 설정
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://localhost:3306/SJSJSS
+    username: root
+    password: admin
+
+  # Redis 설정
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      
+  # 개발 편의를 위한 설정
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+# 로깅 설정
+logging:
+  file:
+    name: C:/test/application.log
+  level:
+    root: INFO
+    com.example.demo: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+  logback:
+    rollingpolicy:
+      max-file-size: 500MB
+      max-history: 30
+      total-size-cap: 5GB
+    
+server:
+  port: 8080
+
+---
+# application-dev.yaml (개발 서버)
+spring:
+  config:
+    activate:
+      on-profile: dev
+    
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://dev-db:3306/devdb
+    username: ${DB_USERNAME}  # 환경 변수 사용
+    password: ${DB_PASSWORD}
+    
+  data:
+    redis:
+      host: dev-redis
+      port: 6379
+
+logging:
+  level:
+    root: INFO
+    com.example.demo: DEBUG
+
+server:
+  port: 8080
+
+---
+# application-prod.yaml (운영 서버)
+spring:
+  config:
+    activate:
+      on-profile: prod
+    
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://prod-db:3306/proddb
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    
+  data:
+    redis:
+      host: prod-redis
+      port: 6379
+      password: ${REDIS_PASSWORD}
+
+  # 운영 환경에서는 개발 도구 비활성화
+  devtools:
+    restart:
+      enabled: false
+    livereload:
+      enabled: false
+
+# 운영 환경 로깅 설정
+logging:
+  level:
+    root: ERROR
+    com.example.demo: INFO
+  file:
+    name: /var/log/application.log
+    max-size: 500MB
+    max-history: 30
+
+server:
+  port: 80
+  tomcat:
+    threads:
+      max: 200      # 최대 스레드 수
+      min-spare: 10 # 최소 유휴 스레드 수
+    max-connections: 8192     # 최대 연결 수
+    accept-count: 100        # 대기 큐 크기
+
+# 모니터링 설정
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
