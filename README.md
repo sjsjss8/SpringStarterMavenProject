@@ -17,9 +17,10 @@
   : JSON 응답
   : 비즈니스 로직 처리
   
-2. 스프링 웹 애플리케이션 계층과 각 계층별 사용되는 클래스 및 어노테이션
-* 계층을 나누는 이유 : 애플리케이션의 역할과 책임을 논리적으로 분리한 구조
+2. Spring 기반의 웹 서버 애플리케이션 구조
+* 애플리케이션의 역할과 책임을 논리적으로 분리하기 위해 계층을 나눔
 
+2.1 3계층 구조(다시 작성해야 할듯..)
 [Presentation Layer] // 외부 요청을 받고 응답을 반환하는 계층. 즉 외부에 '보여지는(Presentation)' 계층
  - Controller > @RestController, @Controller, @RequestMapping, @Autowired..
  - DTO (Data Transfer Object) > @Getter, @Setter, @Builder, @NoArgsConstructor, @AllArgsConstructor, @ToString..
@@ -41,9 +42,9 @@
   • Repository Interface
   • Repository Implementation (필요한 경우)
  - QueryDSL(JPA 사용시)
- - Mapper(Mybatis 사용시)
-  • Mapper Interface > @Mapper..
-  • Mapper Implementation(XML Mapper)
+ - Repository/Mapper(Mybatis 사용시)
+  • Repository/Mapper Interface > @Mapper..
+  • Repository/Mapper Implementation(XML Mapper)
  - DAO
   • DAO Interface > @Repository, @Mapper, @RequiredArgsConstructor..
   • DAO Implementation
@@ -53,7 +54,7 @@
  * MyBatis를 사용할 때는 일반적으로 DAO개념과 같은 Mapper를 사용하는 것이 표준적인 방법입니다.
    하지만 Repository 패턴을 적용하고 싶다면 Mapper를 감싸는 Repository를 만들 수 있습니다.
 
-[Infrastructure Layer] //애플리케이션 전반에서 필요한 환경 및 설정을 제공
+++[Infrastructure Layer] //애플리케이션 전반에서 필요한 환경 및 설정을 제공
  - Configuration(애플리케이션의 각종 설정을 담당) > @Configuration, @EnableWebMvc, @ComponentScan, @PropertySource, @Value, @Bean...
   • WebMvcConfig (Spring MVC 관련 설정 (인터셉터, 리소스 핸들러 등))
   • SecurityConfig (보안 관련 설정 (인증, 인가, 보안 필터 등))
@@ -83,7 +84,7 @@
   • Response Wrapper (API 응답 형식 표준화)
   ...
 
-3. 계층의 흐름도
+* 3계층의 흐름도
 [Client] → HTTP Request
     ↓
 [Presentation Layer] (Controller)
@@ -101,6 +102,16 @@
 [Presentation Layer] (Controller)
     ↓
 [Client] ← HTTP Response
+
+2.2 DDD 기반 계층형 구조
+[Interfaces Layer]
+
+[Application Layer]
+
+[Domain Layer]
+
+[Infrastructure Layer]
+
 
 4. SpringStarterMavenProject 패키지 구조
 백엔드는 도메인형 아키텍처를 사용하고 Spring Boot, MyBatis를 사용해서 구현했다.
@@ -224,7 +235,7 @@ Spring Boot 구조:
      ├── static/      (정적 리소스)
      └── templates/   (동적 뷰 템플릿)
      └── application.yml/properties(설정 파일)
-
+     
 5. RESTful API 규칙
 5.1 기본 URL 구조
 ## 형식 : 도메인/api/API 버전/리소스
@@ -274,7 +285,7 @@ Accept: application/vnd.example.v2+json
 
 # 나쁜 예
 /member/{id}             			# 단수형 사용
-/members/{id}/getOrders   			# URL에 동사 사용
+/members/{id}/getOrders   			# 불필요한 동사 사용 지양
 /members/search/searchType/name		# Query Parameter를 경로에 포함
 
 5.3 HTTP 메서드 사용
@@ -300,6 +311,7 @@ If-None-Match: "{etag}"             # 클라이언트가 가진 리소스의 ETa
 Origin: https://example.com         # 요청하는 출처 도메인 정보
 X-Request-ID: abc-123               # 클라이언트가 생성한 요청 추적 ID
 Accept-Language: ko-KR              # 선호 언어
+...
 
 # 응답 헤더(선택)
 Cache-Control: no-cache           # 서버가 클라이언트에게 캐시 정책 전달
@@ -308,6 +320,7 @@ Access-Control-Allow-Origin: *    # 허용된 도메인 목록
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE  # 허용된 HTTP 메소드
 X-Request-ID: abc-123            # 요청의 ID를 그대로 응답에 포함
 X-API-Version: v1                # 서버의 API 버전 정보
+...
 
 5.5 응답 코드
 # 성공 응답
@@ -326,79 +339,195 @@ X-API-Version: v1                # 서버의 API 버전 정보
 500 Internal Server Error
 503 Service Unavailable
 
-5.6 응답 데이터 포맷
-// 성공 응답
+5.6 API 문서화
+Swagger나 Spring Rest Docs 등을 사용해서 API 스펙 문서 필수 작성
+
+* 주의 : RESTful API 규칙은 데이터 호출 API에만 적용함. 화면(View) 호출 API에는 다음과 같이 URL 규칙만 적용
+GET  /members          # 사용자 목록 화면
+GET  /members/new      # 사용자 등록 화면
+GET  /members/{id}     # 사용자 상세 화면
+GET  /members/{id}/edit # 사용자 수정 화면
+
+6. HTTP 응답 메시지(상태 라인, 응답 헤더, 응답 바디) 제어
+스프링에서 RESTful API 요청에 대한 HTTP 응답 메시지 제어는 아래와 같은 방법을 많이 사용한다.
+
+# ResponseEntity 활용 : Spring에서 제공하는 HTTP Response Wrapper로
+HTTP 응답 메시지를 간단하고 유연하게 설정(동적인 설정, 조건부 설정)하는것이 가능하지만
+바디의 본문을 표준화 하진 못함
+
+예시)
+@GetMapping("/{id}")
+public ResponseEntity<MemberResponseDto> findById(@PathVariable Long id, @RequestParam String fileName) {
+    MemberResponseDto memberDto = memberService.findById(id);
+	
+	return ResponseEntity.ok(memberDto)
+			.header("Content-Disposition", "attachment; filename=" + fileName)
+            .contentType(MediaType.APPLICATION_PDF);
+}
+
+
+Response :
+HTTP/1.1 200 OK                                           
+Content-Disposition: attachment; filename=example.pdf
+Content-Type: application/pdf
+
 {
-    "code": "201",
-    "status": "SUCCESS",
-    "message": "회원이 성공적으로 등록되었습니다",
+    "id": 1,
+    "name": "홍길동"
+}  => ResponseDto에 따라 바디 본문이 달라짐
+
+# ApiResponse활용 : 서비스 개발자가 직접 정의한 HTTP Response Wrapper로
+@ResponseStatus와 @ResponseHeader 어노테이션을 통해서 HTTP 응답 메시지(상태 라인, 응답 헤더, 응답 바디)를 간단하게 설정하는것이 가능하고
+바디의 본문을 표준화 할 수 있다.
+그러나 HTTP 응답 메시지를 유연하게 설정(동적인 설정, 조건부 설정)하기 위해선 코드가 복잡해지는 문제가 있음
+
+
+예시)
+@GetMapping("/{id}")
+@ResponseStatus(HttpStatus.OK)
+@ResponseHeader(name = "Content-Disposition", value = "attachment; filename=test.pdf")
+public ApiResponse<MemberDto> findById(@PathVariable Long id, @RequestParam String fileName) {
+	MemberResponseDto memberDto = memberService.findById(id);
+
+    HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder
+            .getRequestAttributes())
+            .getResponse();
+            
+    // 동적으로 헤더 설정
+    response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+    response.setContentType("application/pdf");
+	
+    return ApiResponse.success(memberDto);
+}
+
+Response :
+HTTP/1.1 200 OK                                           
+Content-Disposition: attachment; filename=example.pdf
+Content-Type: application/pdf
+
+{
+    "success": true,
     "data": {
         "id": 1,
         "name": "홍길동",
-        "email": "hong@test.com",
-        "createdAt": "2024-01-23T12:34:56"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+        "email": "hong@example.com"
+    }
 }
 
-// 에러 응답
+# ResponseEntity + ApiResponse 활용 : ResponseEntity과 ApiResponse를 혼합해서 사용하면 각자의 장점을 활용할 수 있다.
+HTTP 응답 메시지(상태 라인, 응답 헤더, 응답 바디)를 간단하고 유연하게 설정(동적인 설정, 조건부 설정) + 바디의 본문을 표준화
+
+예시2)
+@GetMapping("/{id}")
+public ResponseEntity<ApiResponse<MemberDto>> findById(@PathVariable Long id, @RequestParam String fileName) {
+	MemberResponseDto memberDto = memberService.findById(id);
+
+    return ResponseEntity.ok(ApiResponse.success(memberDto));
+    //또는
+    return ResponseEntity.ok()
+        .header("Content-Disposition", "attachment; filename="+fileName)
+        .contentType(MediaType.APPLICATION_PDF)
+		.body(ApiResponse.success(memberDto));
+}
+
+Response :
+HTTP/1.1 200 OK                                           
+Content-Disposition: attachment; filename=example.pdf
+Content-Type: application/pdf
+
 {
-    "code": "400",
-    "status": "ERROR",
-    "message": "입력값 검증에 실패했습니다",
-    "errors": [
-        {
-            "field": "email",
-            "value": "invalid-email",
-            "reason": "INVALID_FORMAT",
-            "message": "이메일 형식이 올바르지 않습니다"
-        }
-    ],
-    "timestamp": "2024-01-23T12:34:56"
+    "success": true,
+    "data": {
+        "id": 1,
+        "name": "홍길동",
+        "email": "hong@example.com"
+    }
 }
 
-5.7 API 문서화
-Swagger나 Spring Rest Docs 등을 사용해서 API 스펙 문서 필수 작성
+실무에서는 대부분 표준화된 응답 구조를 선호하므로, ApiResponse나 ResponseEntity<ApiResponse>를 많이 사용한다.
+중.소규모 프로젝트 > ApiResponse만으로 충분
+대규모 프로젝트 > ResponseEntity<ApiResponse>로 유연한 제어 가능
 
-[[URL 예시]]
+7. 실무에서 많이 사용하는 RESTful API 요청/응답 예시
+
 ## 등록
 # 등록
+
+HTTP Request Message :
+
 POST /api/v1/members
 Content-Type: application/json
 Accept: application/json
 
-Request:
 {
     "name": "홍길동",
     "email": "hong@test.com"
 }
 
-Response: (201 Created)
+HTTP Response Message :
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
 {
-    "code": "201",
-    "status": "SUCCESS",
-    "message": "회원이 성공적으로 등록되었습니다",
+    "success": true,
     "data": {
         "id": 1,
         "name": "홍길동",
-        "email": "hong@test.com",
-        "createdAt": "2024-01-23T12:34:56"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+        "email": "hong@test.com"
+    }
 }
 
 ## 조회
-# 조회 (목록)
+# 조회 (전체 목록)
+
+HTTP Request Message :
+
 GET /api/v1/members
 Accept: application/json
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "정상 처리되었습니다",
+    "success": true,
+    "data": [
+        {
+            "id": 1,
+            "name": "홍길동",
+            "email": "hong@test.com"
+        },
+        {
+            "id": 2,
+            "name": "김철수",
+            "email": "kim@test.com"
+        },
+        {
+            "id": 3,
+            "name": "이영희",
+            "email": "lee@test.com"
+        }
+    ]
+}
+
+# 조회 (목록 - 페이징)
+
+HTTP Request Message :
+
+GET /api/v1/members?page=0&size=10
+Accept: application/json
+
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "success": true,
     "data": {
-        "content": [
+        "items": [
             {
                 "id": 1,
                 "name": "홍길동",
@@ -410,44 +539,50 @@ Response: (200 OK)
                 "email": "kim@test.com"
             }
         ],
-        "pagination": {
+        "pageInfo": {
             "page": 0,
             "size": 10,
             "totalElements": 42,
             "totalPages": 5
         }
-    },
-    "timestamp": "2024-01-23T12:34:56"
+    }
 }
 
 # 조회 (단건)
+
+HTTP Request Message :
+
 GET /api/v1/members/{id}
 Accept: application/json
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "정상 처리되었습니다",
+    "success": true,
     "data": {
         "id": 1,
         "name": "홍길동",
-        "email": "hong@test.com",
-        "createdAt": "2024-01-23T12:34:56",
-        "updatedAt": "2024-01-23T12:34:56"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+        "email": "hong@test.com"
+    }
 }
 
 # 검색
+
+HTTP Request Message :
+
 GET /api/v1/members/search?keyword=홍길동
 Accept: application/json
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "정상 처리되었습니다",
+    "success": true,
     "data": {
         "content": [
             {
@@ -462,84 +597,92 @@ Response: (200 OK)
             "totalElements": 1,
             "totalPages": 1
         }
-    },
-    "timestamp": "2024-01-23T12:34:56"
+    }
 }
 
 ## 수정
 # 수정 (전체)
+
+HTTP Request Message :
+
 PUT /api/v1/members/{id}
 Content-Type: application/json
 Accept: application/json
 
-Request:
 {
     "name": "홍길동2",
     "email": "hong2@test.com"
 }
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "회원 정보가 수정되었습니다",
+    "success": true,
     "data": {
         "id": 1,
         "name": "홍길동2",
-        "email": "hong2@test.com",
-        "updatedAt": "2024-01-23T12:34:56"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+        "email": "hong2@test.com"
+    }
 }
 
 # 수정 (부분)
+
+HTTP Request Message :
+
 PATCH /api/v1/members/{id}
 Content-Type: application/json
 Accept: application/json
 
-Request:
 {
     "name": "홍길동3"
 }
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "회원 정보가 수정되었습니다",
+    "success": true,
     "data": {
         "id": 1,
         "name": "홍길동3",
-        "email": "hong2@test.com",
-        "updatedAt": "2024-01-23T12:34:56"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+        "email": "hong2@test.com"
+    }
 }
 
 ## 삭제
 # 삭제
+
+HTTP Request Message :
+
 DELETE /api/v1/members/{id}
 Accept: application/json
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "회원이 삭제되었습니다",
+    "success": true,
     "data": {
-        "id": 1,
-        "deletedAt": "2024-01-23T12:34:56"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+        "id": 1
+    }
 }
 
-## 중첩된 리소스(예시:특정 사용자의 주문 목록)
+## 중첩된 리소스
 # 주문 등록
+
+HTTP Request Message :
+
 POST /api/v1/members/{userId}/orders
 Content-Type: application/json
 Authorization: Bearer {token}
 
-Request:
 {
     "items": [
         {
@@ -555,31 +698,36 @@ Request:
     "paymentMethod": "CARD"
 }
 
-Response: (201 Created)
+HTTP Response Message :
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
 {
-    "code": "201",
-    "status": "SUCCESS",
-    "message": "주문이 성공적으로 생성되었습니다",
+    "success": true,
     "data": {
         "orderId": 1,
         "orderNumber": "ORD-20240125-001",
         "totalAmount": 50000,
-        "status": "PENDING",
-        "createdAt": "2024-01-25T10:00:00"
-    },
-    "timestamp": "2024-01-25T10:00:00"
+        "status": "PENDING"
+    }
 }
 
 # 특정주문 조회
+
+HTTP Request Message :
+
 GET /api/v1/members/{userId}/orders/{orderId}
 Accept: application/json
 Authorization: Bearer {token}
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "정상 처리되었습니다",
+    "success": true,
     "data": {
         "orderId": 1,
         "orderNumber": "ORD-20240125-001",
@@ -597,18 +745,18 @@ Response: (200 OK)
             "zipCode": "12345",
             "address": "서울시 강남구",
             "detailAddress": "삼성동 123-45"
-        },
-        "createdAt": "2024-01-25T10:00:00"
-    },
-    "timestamp": "2024-01-25T10:00:00"
+        }
+    }
 }
 
 # 주문 수정
+
+HTTP Request Message :
+
 PATCH /api/v1/members/{userId}/orders/{orderId}
 Content-Type: application/json
 Authorization: Bearer {token}
 
-Request:
 {
     "deliveryAddress": {
         "zipCode": "12345",
@@ -617,11 +765,13 @@ Request:
     }
 }
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "주문이 수정되었습니다",
+    "success": true,
     "data": {
         "orderId": 1,
         "orderNumber": "ORD-20240125-001",
@@ -629,64 +779,73 @@ Response: (200 OK)
             "zipCode": "12345",
             "address": "서울시 강남구",
             "detailAddress": "삼성동 999-99"
-        },
-        "updatedAt": "2024-01-25T11:00:00"
-    },
-    "timestamp": "2024-01-25T11:00:00"
+        }
+    }
 }
 
 # 주문 삭제
+
+HTTP Request Message :
+
 DELETE /api/v1/members/{userId}/orders/{orderId}
 Authorization: Bearer {token}
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "주문이 취소되었습니다",
+    "success": true,
     "data": {
         "orderId": 1,
         "orderNumber": "ORD-20240125-001",
-        "status": "CANCELLED",
-        "cancelledAt": "2024-01-25T12:00:00"
-    },
-    "timestamp": "2024-01-25T12:00:00"
+        "status": "CANCELLED"
+    }
 }
 
 ## 기타
 # 활성화/비활성화
-PUT /api/v1/members/{id}/activate
+
+HTTP Request Message :
+
+PATCH /api/v1/members/{id}
 Content-Type: application/json
 Accept: application/json
 
-Request:
 {
+    "status": "ACTIVE",
     "reason": "회원 복귀"
 }
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "회원 상태가 변경되었습니다",
+    "success": true,
     "data": {
         "id": 1,
         "status": "ACTIVE",
-        "updatedAt": "2024-01-23T12:34:56",
         "reason": "회원 복귀"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+    }
 }
 
 # 통계
+
+HTTP Request Message :
+
 GET /api/v1/members/stats
 Accept: application/json
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "정상 처리되었습니다",
+    "success": true,
     "data": {
         "metrics": {
             "totalMembers": 1000,
@@ -698,19 +857,23 @@ Response: (200 OK)
             "growthRate": "5.2%",
             "retentionRate": "85%"
         }
-    },
-    "timestamp": "2024-01-23T12:34:56"
+    }
 }
 
 # 특정 기간 통계
+
+HTTP Request Message :
+
 GET /api/v1/members/stats?startDate=20240101&endDate=20241231
 Accept: application/json
 
-Response: (200 OK)
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+
 {
-    "code": "200",
-    "status": "SUCCESS",
-    "message": "정상 처리되었습니다",
+    "success": true,
     "data": {
         "period": {
             "start": "2024-01-01",
@@ -722,16 +885,17 @@ Response: (200 OK)
             "newMembers": 150,
             "averageAge": 32.5
         }
-    },
-    "timestamp": "2024-01-23T12:34:56"
+    }
 }
 
 # 다중 생성
-POST /api/v1/members/bulk
+
+HTTP Request Message :
+
+POST /api/v1/members/batch
 Content-Type: application/json
 Accept: application/json
 
-Request:
 {
     "members": [
         {
@@ -745,17 +909,18 @@ Request:
     ]
 }
 
-Response: (201 Created)
+HTTP Response Message :
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
 {
-    "code": "201",
-    "status": "SUCCESS",
-    "message": "회원이 일괄 등록되었습니다",
+    "success": true,
     "data": {
         "summary": {
             "total": 2,
             "successful": 2,
-            "failed": 0,
-            "processedAt": "2024-01-23T12:34:56"
+            "failed": 0
         },
         "results": [
             {
@@ -769,16 +934,17 @@ Response: (201 Created)
                 "email": "kim@test.com"
             }
         ]
-    },
-    "timestamp": "2024-01-23T12:34:56"
+    }
 }
 
 # 이메일 전송
+
+HTTP Request Message :
+
 POST /api/v1/members/{memberId}/emails
 Content-Type: application/json
 Accept: application/json
 
-Request:
 {
     "subject": "메일 제목",
     "content": "메일 내용",
@@ -789,26 +955,27 @@ Request:
     }
 }
 
-Response: (202 Accepted)
+HTTP Response Message :
+
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+
 {
-    "code": "202",
-    "status": "SUCCESS",
-    "message": "이메일 전송이 요청되었습니다",
+    "success": true,
     "data": {
         "id": "email-123456",
-        "status": "QUEUED",
-        "queuedAt": "2024-01-23T12:34:56",
-        "estimatedDeliveryTime": "2024-01-23T12:35:56"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+        "status": "QUEUED"
+    }
 }
 
 # 파일 업로드
-POST /api/v1/members/{id}/image
+
+HTTP Request Message :
+
+POST /api/v1/members/{id}/files
 Content-Type: multipart/form-data
 Accept: application/json
 
-Request:
 Form-Data:
 - file: (binary)
 - type: "PROFILE"
@@ -817,11 +984,13 @@ Form-Data:
     "tags": ["profile", "avatar"]
   }
 
-Response: (201 Created)
+HTTP Response Message :
+
+HTTP/1.1 201 Created
+Content-Type: application/json
+
 {
-    "code": "201",
-    "status": "SUCCESS",
-    "message": "파일이 업로드되었습니다",
+    "success": true,
     "data": {
         "id": "file-123456",
         "url": "https://example.com/images/profile/1.jpg",
@@ -832,84 +1001,103 @@ Response: (201 Created)
         "dimensions": {
             "width": 800,
             "height": 600
-        },
-        "uploadedAt": "2024-01-23T12:34:56"
-    },
-    "timestamp": "2024-01-23T12:34:56"
+        }
+    }
 }
 
+# 파일 다운로드
+
+HTTP Request Message :
+
+GET /api/v1/members/{memberId}/files/{fileId}
+Accept: application/pdf
+
+HTTP Response Message :
+
+HTTP/1.1 200 OK
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="member-document.pdf"
+Content-Length: 58246
+
+[Binary PDF Data...]
+
 # 유효성 검사 실패
-Response: (400 Bad Request)
+
+HTTP Response Message :
+
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
 {
-    "code": "400",
-    "status": "ERROR",
-    "message": "입력값 검증에 실패했습니다",
-    "errors": [
-        {
-            "field": "email",
-            "value": "invalid-email",
-            "reason": "INVALID_FORMAT",
-            "message": "이메일 형식이 올바르지 않습니다"
-        }
-    ],
-    "timestamp": "2024-01-23T12:34:56"
+    "success": false,
+    "error": {
+        "code": "INVALID_INPUT_VALUE",
+        "message": "입력값 검증에 실패했습니다",
+        "errors": [
+            {
+                "field": "email",
+                "value": "invalid-email",
+                "reason": "이메일 형식이 올바르지 않습니다"
+            }
+        ]
+    }
 }
 
 # 권한 없음
-Response: (403 Forbidden)
+
+HTTP Response Message :
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
 {
-    "code": "403",
-    "status": "ERROR",
-    "message": "해당 리소스에 대한 접근 권한이 없습니다",
-    "errors": [
-        {
-            "reason": "ACCESS_DENIED",
-            "message": "관리자 권한이 필요합니다",
-            "data": {
-                "requiredRole": "ADMIN",
-                "currentRole": "USER"
+    "success": false,
+    "error": {
+        "code": "ACCESS_DENIED",
+        "message": "접근이 거부되었습니다",
+        "errors": [
+            {
+                "field": "role",
+                "value": "USER",
+                "reason": "관리자 권한이 필요합니다"
             }
-        }
-    ],
-    "timestamp": "2024-01-23T12:34:56"
+        ]
+    }
 }
 
 # 리소스를 찾을 수 없음
-Response: (404 Not Found)
+
+HTTP Response Message :
+
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
 {
-    "code": "404",
-    "status": "ERROR",
-    "message": "요청한 리소스를 찾을 수 없습니다",
-    "errors": [
-        {
-            "reason": "RESOURCE_NOT_FOUND",
-            "message": "해당 ID의 회원이 존재하지 않습니다",
-            "data": {
-                "resourceId": "999",
-                "resourceType": "member"
+    "success": false,
+    "error": {
+        "code": "RESOURCE_NOT_FOUND",
+        "message": "요청한 리소스를 찾을 수 없습니다",
+        "errors": [
+            {
+                "field": "id",
+                "value": "999",
+                "reason": "해당 ID의 회원이 존재하지 않습니다"
             }
-        }
-    ],
-    "timestamp": "2024-01-23T12:34:56"
+        ]
+    }
 }
 
 # 서버 에러
-Response: (500 Internal Server Error)
-{
-    "code": "500",
-    "status": "ERROR",
-    "message": "서버 처리 중 오류가 발생했습니다",
-    "errors": [
-        {
-            "reason": "INTERNAL_SERVER_ERROR",
-            "message": "데이터베이스 연결 오류"
-        }
-    ],
-    "timestamp": "2024-01-23T12:34:56"
-}
 
-* 주의 : RESTful API 규칙은 데이터 호출 API에만 적용함. 화면(View) 호출 API에는 다음과 같이 URL 규칙만 적용
-GET  /members          # 사용자 목록 화면
-GET  /members/new      # 사용자 등록 화면
-GET  /members/{id}     # 사용자 상세 화면
-GET  /members/{id}/edit # 사용자 수정 화면
+HTTP Response Message :
+
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+
+{
+    "success": false,
+    "error": {
+        "code": "INTERNAL_SERVER_ERROR",
+        "message": "서버 처리 중 오류가 발생했습니다"
+    }
+}

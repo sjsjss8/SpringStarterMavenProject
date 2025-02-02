@@ -6,7 +6,7 @@ spring:
 # 공통 설정
 mybatis:
   mapper-locations: classpath:/static/mybatis/mapper/**/*.xml
-  type-aliases-package: com.example.demo.domain
+  type-aliases-package: com.example.demo
   configuration:
     map-underscore-to-camel-case: true
     jdbc-type-for-null: NULL

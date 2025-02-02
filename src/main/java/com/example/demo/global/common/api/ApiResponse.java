@@ -1,73 +1,67 @@
 package com.example.demo.global.common.api;
 
-import java.time.LocalDateTime;
-
-import org.springframework.http.HttpStatus;
+import java.util.List;
 
 import com.example.demo.global.error.ErrorCode;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Getter
 @Builder
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
-public class ApiResponse<T> { // Response Wrapper
-    
-    private int code;           // HTTP 상태 코드
-    private String status;      // 상태 메시지
-    private String message;     // 응답 메시지
-    private T data;            // 응답 데이터
-    private LocalDateTime timestamp;  // 응답 시간
-    
-    // 성공 응답 (데이터 포함)
-    public static <T> ApiResponse<T> success(T data) {
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ApiResponse<T> {
+    private boolean success; // 성공 여부
+    private T data; // 응답 데이터
+    private Error error; // 에러 정보 (에러 발생 시)
+
+    @Getter
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class Error {
+        private String code; // 에러 코드
+        private String message; // 상세 에러 메시지
+        private List<FieldError> errors; // 필드 에러 목록
+    }
+
+    @Getter
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class FieldError {
+        private String field; // 에러 발생 필드
+        private String value; // 에러 값
+        private String reason; // 에러 이유
+    }
+
+    // 성공 응답 (200(OK), 201(Created), 204(No Content))
+    public static <T> ApiResponse<T> ok(T data) {
         return ApiResponse.<T>builder()
-                .code(HttpStatus.OK.value())
-                .status("SUCCESS")
-                .message("정상 처리되었습니다.")
+                .success(true)
                 .data(data)
-                .timestamp(LocalDateTime.now())
                 .build();
     }
-    
-    // 성공 응답 (데이터 미포함)
-    public static <T> ApiResponse<T> success() {
-        return success(null);
-    }
-    
-    // 성공 응답 (사용자 정의 메시지)
-    public static <T> ApiResponse<T> success(T data, String message) {
-        return ApiResponse.<T>builder()
-                .code(HttpStatus.OK.value())
-                .status("SUCCESS")
-                .message(message)
-                .data(data)
-                .timestamp(LocalDateTime.now())
-                .build();
-    }
-    
-    // 실패 응답
-    public static <T> ApiResponse<T> error(HttpStatus status, String message) {
-        return ApiResponse.<T>builder()
-                .code(status.value())
-                .status("ERROR")
-                .message(message)
-                .timestamp(LocalDateTime.now())
-                .build();
-    }
-    
-    // 실패 응답 (예외 처리용)
+
+    // 실패 응답 (ErrorCode 기반)
     public static <T> ApiResponse<T> error(ErrorCode errorCode) {
         return ApiResponse.<T>builder()
-                .code(errorCode.getStatus().value())
-                .status("ERROR")
-                .message(errorCode.getMessage())
-                .timestamp(LocalDateTime.now())
+                .success(false)
+                .error(Error.builder()
+                        .code(errorCode.getCode())
+                        .message(errorCode.getMessage())
+                        .build())
+                .build();
+    }
+
+    // 실패 응답 (ErrorCode + 필드 에러)
+    public static <T> ApiResponse<T> error(ErrorCode errorCode, List<FieldError> errors) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .error(Error.builder()
+                        .code(errorCode.getCode())
+                        .message(errorCode.getMessage())
+                        .errors(errors)
+                        .build())
                 .build();
     }
 }
