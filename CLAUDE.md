@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build
 mvnw.cmd clean install
 
-# Run (local profile, port 8080)
+# Run (local profile, port 8081)
 mvnw.cmd spring-boot:run
 
 # Run specific profile
@@ -24,7 +24,7 @@ mvnw.cmd test -Dtest=MemberApplicationTests
 mvnw.cmd clean package -DskipTests
 ```
 
-Swagger UI is available at `http://localhost:8080/swagger-ui.html` when running locally.
+Swagger UI is available at `http://localhost:8081/swagger-ui.html` when running locally.
 
 ## Architecture
 
@@ -52,7 +52,7 @@ DDD-based layered architecture. Packages map directly to layers:
 
 ## Profiles & Database
 
-- **local** (default): MariaDB at `localhost:3306/SJSJSS`, Redis at `localhost:6379`, port 8080, SQL logging to stdout
+- **local** (default): MariaDB at `localhost:3306/SJSJSS`, Redis at `localhost:6379`, port 8081, SQL logging to stdout
 - **dev**: Uses env vars `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
 - **prod**: Same env vars plus `REDIS_HOST`, `REDIS_PASSWORD`; port 80, logs to `/var/log/application.log`
 

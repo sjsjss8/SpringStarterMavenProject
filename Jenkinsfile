@@ -87,11 +87,11 @@ pipeline {
 
                         docker run -d \\
                           --name ${LOCAL_CONTAINER} \\
-                          -p 8080:8080 \\
+                          -p 8081:8081 \\
                           -e SPRING_PROFILES_ACTIVE=local \\
                           ${DOCKER_IMAGE}:latest
 
-                        echo "✅ 컨테이너 실행 완료 → http://localhost:8080"
+                        echo "✅ 컨테이너 실행 완료 → http://localhost:8081"
                     """
                 }
             }

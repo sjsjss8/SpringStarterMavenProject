@@ -74,7 +74,7 @@ logging:
       total-size-cap: 5GB
     
 server:
-  port: 8080
+  port: 8081
 
 ---
 # application-dev.yaml (개발 서버)
@@ -100,7 +100,7 @@ logging:
     com.example.demo: DEBUG
 
 server:
-  port: 8080
+  port: 8081
 
 ---
 # application-prod.yaml (운영 서버)

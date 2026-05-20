@@ -5,7 +5,7 @@ services:
     image: your-dockerhub-id/spring-starter-maven:${TAG:-latest}   # ← DockerHub ID로 변경
     container_name: spring-app
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: prod
       # DB (mariadb 서비스 이름이 hostname으로 사용됨)
