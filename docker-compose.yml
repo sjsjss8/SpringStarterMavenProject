@@ -1,0 +1,78 @@
+services:
+
+  # ── Spring Boot 앱 ──────────────────────────────────────────────────────────
+  app:
+    image: your-dockerhub-id/spring-starter-maven:${TAG:-latest}   # ← DockerHub ID로 변경
+    container_name: spring-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # DB (mariadb 서비스 이름이 hostname으로 사용됨)
+      DB_HOST:     mariadb
+      DB_PORT:     3306
+      DB_NAME:     ${DB_NAME:-SJSJSS}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # Redis
+      REDIS_HOST:     redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # JVM 튜닝 (서버 메모리에 맞게 조절)
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ── MariaDB ─────────────────────────────────────────────────────────────────
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE:      ${DB_NAME:-SJSJSS}
+      MARIADB_USER:          ${DB_USERNAME}
+      MARIADB_PASSWORD:      ${DB_PASSWORD}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      # 초기 DDL/DML이 있으면 아래 경로에 .sql 파일 추가
+      # - ./src/main/resources/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: >
+      sh -c "redis-server
+             ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app-network
+
+# ── Volumes & Networks ────────────────────────────────────────────────────────
+volumes:
+  mariadb-data:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge

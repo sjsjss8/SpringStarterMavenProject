@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\SJSJSS\\\\Project\\\\3.source\\\\SpringbootProject\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(head -100)",
+      "PowerShell(\\(Get-ChildItem \"C:\\\\SJSJSS\\\\Project\\\\3.source\\\\SpringbootProject\" -Force -Recurse -ErrorAction SilentlyContinue\\).Count)",
+      "PowerShell(Get-ChildItem \"C:\\\\SJSJSS\\\\Project\\\\3.source\\\\SpringbootProject\" -Force -Recurse -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer } | ForEach-Object { $_.FullName })"
+    ]
+  }
+}
