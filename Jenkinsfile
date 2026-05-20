@@ -5,11 +5,12 @@ pipeline {
     parameters {
         choice(
             name: 'DEPLOY_METHOD',
-            choices: ['local-docker', 'local-folder', 'remote-ssh'],
+            choices: ['local-docker', 'local-folder', 'local-folder-windows', 'remote-ssh'],
             description: '''배포 방법 선택
-  local-docker : 로컬 Docker 컨테이너로 실행
-  local-folder : 로컬 특정 폴더에 JAR 복사
-  remote-ssh   : 원격 서버에 SSH로 배포'''
+  local-docker         : 로컬 Docker 컨테이너로 실행
+  local-folder         : Jenkins 컨테이너 내부 폴더에 JAR 복사
+  local-folder-windows : Windows 실제 폴더(C:\\deploy)에 JAR 복사 (Jenkins 재생성 필요)
+  remote-ssh           : 원격 서버에 SSH로 배포'''
         )
     }
 
@@ -22,8 +23,8 @@ pipeline {
         // [방법 1] 로컬 Docker - 컨테이너 이름
         LOCAL_CONTAINER = 'spring-app'
 
-        // [방법 2] 로컬 폴더 - Jenkins 컨테이너에 마운트된 경로
-        LOCAL_DEPLOY_PATH = '/var/deploy'
+        // [방법 2] 로컬 폴더 - Jenkins 홈 하위 경로 (별도 마운트 불필요)
+        LOCAL_DEPLOY_PATH = '/var/jenkins_home/deploy'
 
         // [방법 3] 원격 SSH
         REMOTE_HOST   = '원격서버IP'                       // ← 원격 서버 IP로 변경
@@ -89,6 +90,11 @@ pipeline {
                           --name ${LOCAL_CONTAINER} \\
                           -p 8081:8081 \\
                           -e SPRING_PROFILES_ACTIVE=local \\
+                          -e DB_HOST=host.docker.internal \\
+                          -e DB_PORT=3306 \\
+                          -e DB_NAME=SJSJSS \\
+                          -e DB_USERNAME=root \\
+                          -e DB_PASSWORD=admin \\
                           ${DOCKER_IMAGE}:latest
 
                         echo "✅ 컨테이너 실행 완료 → http://localhost:8081"
@@ -118,6 +124,30 @@ pipeline {
 
                     echo "✅ JAR 복사 완료"
                     ls -lh ${LOCAL_DEPLOY_PATH}/
+                """
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // [방법 2-B] Windows 실제 폴더에 JAR 복사
+        //   - Jenkins 컨테이너 실행 시 -v C:\deploy:/var/deploy 마운트 필요
+        //   - 빌드된 JAR가 Windows C:\deploy 폴더에 복사됨
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        stage('Deploy: Local Folder (Windows)') {
+            when {
+                expression { params.DEPLOY_METHOD == 'local-folder-windows' }
+            }
+            steps {
+                echo "▶ [방법 2-B] Windows 폴더 배포 → C:\\deploy"
+
+                sh """
+                    mkdir -p /var/deploy
+
+                    cp target/*.jar /var/deploy/app.jar
+                    cp target/*.jar /var/deploy/app-${DOCKER_TAG}.jar
+
+                    echo "✅ C:\\\\deploy\\\\app.jar 복사 완료"
+                    ls -lh /var/deploy/
                 """
             }
         }

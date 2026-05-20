@@ -41,9 +41,9 @@ spring:
   # DB 설정
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://localhost:3306/SJSJSS
-    username: root
-    password: admin
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:SJSJSS}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:admin}
 
   # Redis 설정
   data:
