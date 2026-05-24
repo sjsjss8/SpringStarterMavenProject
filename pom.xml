@@ -116,6 +116,12 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- 테스트용 인메모리 DB (Jenkins CI에서 MariaDB 없이 테스트 실행) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
         
         <!-- 7. 개발 도구 -->
         <dependency>
