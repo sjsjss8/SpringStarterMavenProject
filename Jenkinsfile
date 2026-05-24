@@ -6,11 +6,29 @@ pipeline {
         choice(
             name: 'DEPLOY_METHOD',
             choices: ['local-docker', 'local-folder', 'local-folder-windows', 'remote-ssh'],
-            description: '''배포 방법 선택
-  local-docker         : 로컬 Docker 컨테이너로 실행
-  local-folder         : Jenkins 컨테이너 내부 폴더에 JAR 복사
-  local-folder-windows : Windows 실제 폴더(C:\\deploy)에 JAR 복사 (Jenkins 재생성 필요)
-  remote-ssh           : 원격 서버에 SSH로 배포'''
+            description: '''── 배포 방법을 선택하세요 ──────────────────────────────────────────
+
+  local-docker
+    빌드한 앱을 Docker 이미지로 만들어 현재 PC에서 컨테이너로 즉시 실행
+    결과 → 브라우저에서 http://localhost:8081 로 바로 접속 가능
+    사전 조건 : Docker Desktop 실행 중
+
+  local-folder
+    빌드된 JAR 파일을 Jenkins 내부 저장소에 보관 (앱 실행 X, 파일만 저장)
+    결과 → Jenkins 컨테이너 안 /var/jenkins_home/deploy/app.jar
+    사전 조건 : 없음 (항상 사용 가능)
+
+  local-folder-windows
+    빌드된 JAR 파일을 이 PC의 Windows 폴더에 복사 (앱 실행 X, 파일만 저장)
+    결과 → C:\\SJSJSS\\Project\\01.File\\StarterMavenProject\\app.jar
+    사전 조건 : Jenkins 컨테이너에 해당 폴더 볼륨 마운트 설정 필요
+
+  remote-ssh
+    빌드된 JAR 파일을 외부 리눅스 서버에 전송한 뒤 서버에서 앱 자동 실행
+    결과 → 원격 서버에서 앱 구동 (서버 IP:8081 접속)
+    사전 조건 : Jenkinsfile 내 REMOTE_HOST/USER/PATH 설정 + SSH 키 등록
+
+────────────────────────────────────────────────────────────────'''
         )
     }
 
