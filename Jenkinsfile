@@ -181,7 +181,7 @@ pipeline {
                           -p 8081:8081 \\
                           -e SPRING_PROFILES_ACTIVE=local \\
                           -e DB_HOST=host.docker.internal \\
-                          -e DB_PORT=3306 \\
+                          -e DB_PORT=50002 \\
                           -e DB_NAME=SJSJSS \\
                           -e DB_USERNAME=root \\
                           -e DB_PASSWORD=admin \\
