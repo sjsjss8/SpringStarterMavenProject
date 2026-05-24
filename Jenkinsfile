@@ -5,18 +5,13 @@ pipeline {
     parameters {
         choice(
             name: 'DEPLOY_METHOD',
-            choices: ['local-docker', 'local-folder', 'local-folder-windows', 'remote-ssh'],
+            choices: ['local-docker', 'local-folder-windows', 'remote-ssh'],
             description: '''── 배포 방법을 선택하세요 ──────────────────────────────────────────
 
   local-docker
     빌드한 앱을 Docker 이미지로 만들어 현재 PC에서 컨테이너로 즉시 실행
     결과 → 브라우저에서 http://localhost:8081 로 바로 접속 가능
     사전 조건 : Docker Desktop 실행 중
-
-  local-folder
-    빌드된 JAR 파일을 Jenkins 내부 저장소에 보관 (앱 실행 X, 파일만 저장)
-    결과 → Jenkins 컨테이너 안 /var/jenkins_home/deploy/app.jar
-    사전 조건 : 없음 (항상 사용 가능)
 
   local-folder-windows
     빌드된 JAR 파일을 이 PC의 Windows 폴더에 복사 (앱 실행 X, 파일만 저장)
@@ -38,13 +33,10 @@ pipeline {
         DOCKER_IMAGE  = "your-dockerhub-id/${APP_NAME}"   // ← DockerHub ID로 변경
         DOCKER_TAG    = "${env.BUILD_NUMBER}"
 
-        // [방법 1] 로컬 Docker - 컨테이너 이름
+        // [local-docker] 컨테이너 이름
         LOCAL_CONTAINER = 'spring-app'
 
-        // [방법 2] 로컬 폴더 - Jenkins 홈 하위 경로 (별도 마운트 불필요)
-        LOCAL_DEPLOY_PATH = '/var/jenkins_home/deploy'
-
-        // [방법 3] 원격 SSH
+        // [remote-ssh] 원격 서버 정보
         REMOTE_HOST   = '원격서버IP'                       // ← 원격 서버 IP로 변경
         REMOTE_USER   = 'ubuntu'                           // ← 원격 서버 계정으로 변경
         REMOTE_PATH   = '/home/ubuntu/app'
@@ -83,13 +75,12 @@ pipeline {
                     archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                 }
                 failure {
-                    // ── 규칙 4: 빌드 실패 시 원인 로그 출력
                     echo "❌ 빌드 실패 - 테스트 또는 컴파일 오류 확인 필요"
                 }
             }
         }
 
-        // ② - 코드 품질 검사
+        // ③ 코드 품질 검사
         stage('Code Quality') {
             steps {
                 sh 'mvn checkstyle:check -q || true'
@@ -108,7 +99,7 @@ pipeline {
             }
         }
 
-        // ③ - 보안 취약점 스캔
+        // ④ 보안 취약점 스캔
         stage('Security Scan') {
             parallel {
 
@@ -126,7 +117,6 @@ pipeline {
                     }
                     post {
                         always {
-                            // 취약점 리포트 보관 (HTML 형태로 확인 가능)
                             publishHTML([
                                 allowMissing: true,
                                 reportDir:   'target',
@@ -159,19 +149,14 @@ pipeline {
             }
         }
 
-        // ④ - Docker 이미지 보안 스캔 (Trivy)
-        //    빌드된 이미지의 OS/라이브러리 취약점 스캔
-        //    local-docker 방법 선택 시에만 실행
+        // ⑤ Docker 이미지 보안 스캔 (local-docker 선택 시에만 실행)
         stage('Image Security Scan') {
             when {
                 expression { params.DEPLOY_METHOD == 'local-docker' }
             }
             steps {
                 sh """
-                    # Trivy 없으면 설치
                     which trivy || apt-get install -y trivy 2>/dev/null || true
-
-                    # CRITICAL/HIGH 취약점 발견 시 경고 (|| true 로 빌드는 계속)
                     trivy image \
                       --severity HIGH,CRITICAL \
                       --exit-code 0 \
@@ -181,9 +166,7 @@ pipeline {
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [방법 1] 로컬 Docker 컨테이너로 실행
-        //   - Dockerfile로 이미지 빌드 후 로컬에서 바로 컨테이너 실행
-        //   - Spring Boot 앱이 localhost:8080 으로 즉시 뜸
+        // [local-docker] Docker 이미지 빌드 후 현재 PC에서 컨테이너로 즉시 실행
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: Local Docker') {
             when {
@@ -191,13 +174,9 @@ pipeline {
             }
             steps {
                 script {
-                    echo "▶ [방법 1] 로컬 Docker 컨테이너 배포"
-
-                    // 이미지 빌드
                     sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
                     sh "docker tag  ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
 
-                    // 기존 컨테이너 제거 후 새 컨테이너 실행
                     sh """
                         docker stop ${LOCAL_CONTAINER} || true
                         docker rm   ${LOCAL_CONTAINER} || true
@@ -220,58 +199,29 @@ pipeline {
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [방법 2] 로컬 특정 폴더에 JAR 복사
-        //   - Jenkins 컨테이너 실행 시 -v C:\deploy:/var/deploy 마운트 필요
-        //   - 빌드된 JAR가 Windows C:\deploy 폴더에 복사됨
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: Local Folder') {
-            when {
-                expression { params.DEPLOY_METHOD == 'local-folder' }
-            }
-            steps {
-                echo "▶ [방법 2] 로컬 폴더 배포 → ${LOCAL_DEPLOY_PATH}"
-
-                sh """
-                    mkdir -p ${LOCAL_DEPLOY_PATH}
-
-                    # JAR 복사 (타임스탬프 백업 포함)
-                    cp target/*.jar ${LOCAL_DEPLOY_PATH}/app.jar
-                    cp target/*.jar ${LOCAL_DEPLOY_PATH}/app-${DOCKER_TAG}.jar
-
-                    echo "✅ JAR 복사 완료"
-                    ls -lh ${LOCAL_DEPLOY_PATH}/
-                """
-            }
-        }
-
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [방법 2-B] Windows 실제 폴더에 JAR 복사
-        //   - Jenkins 컨테이너 실행 시 -v C:\deploy:/var/deploy 마운트 필요
-        //   - 빌드된 JAR가 Windows C:\deploy 폴더에 복사됨
+        // [local-folder-windows] 빌드된 JAR를 Windows 폴더에 복사
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: Local Folder (Windows)') {
             when {
                 expression { params.DEPLOY_METHOD == 'local-folder-windows' }
             }
             steps {
-                echo "▶ [방법 2-B] Windows 폴더 배포 → C:\\deploy"
-
                 sh """
                     mkdir -p /var/deploy
 
                     cp target/*.jar /var/deploy/app.jar
                     cp target/*.jar /var/deploy/app-${DOCKER_TAG}.jar
 
-                    echo "✅ C:\\\\deploy\\\\app.jar 복사 완료"
+                    echo "✅ 배포 완료 → C:\\\\SJSJSS\\\\Project\\\\01.File\\\\StarterMavenProject\\\\app.jar"
                     ls -lh /var/deploy/
                 """
             }
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [방법 3] 원격 서버에 SSH로 JAR 전송 후 실행
-        //   - Jenkins Credentials에 'deploy-server-ssh' 등록 필요
-        //   - 원격 서버에 Java 17 설치 필요
+        // [remote-ssh] 원격 서버에 JAR 전송 후 자동 실행
+        //   사전 조건 : Jenkins Credentials에 'deploy-server-ssh' 등록
+        //             Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 설정
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: Remote SSH') {
             when {
@@ -279,39 +229,32 @@ pipeline {
             }
             steps {
                 withCredentials([sshUserPrivateKey(
-                    credentialsId: 'deploy-server-ssh',    // Jenkins Credentials ID
+                    credentialsId: 'deploy-server-ssh',
                     keyFileVariable:  'SSH_KEY',
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh """
-                        echo "▶ [방법 3] 원격 서버 SSH 배포 → ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}"
-
                         # 원격 서버에 배포 폴더 생성
                         ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                             ${REMOTE_USER}@${REMOTE_HOST} \\
                             "mkdir -p ${REMOTE_PATH}"
 
-                        # JAR 파일 전송 (SCP)
+                        # JAR 파일 전송
                         scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                             target/*.jar \\
                             ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app.jar
 
-                        # 원격 서버에서 기존 프로세스 종료 후 재시작
+                        # 기존 프로세스 종료 후 재시작
                         ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                             ${REMOTE_USER}@${REMOTE_HOST} "
-                                # 기존 프로세스 종료
                                 pkill -f 'java -jar' || true
                                 sleep 2
-
-                                # 백그라운드로 새 프로세스 실행
                                 nohup java -jar ${REMOTE_PATH}/app.jar \\
                                   --spring.profiles.active=prod \\
                                   > ${REMOTE_PATH}/app.log 2>&1 &
-
-                                echo '✅ 원격 서버 배포 완료'
                                 sleep 3
-                                # 프로세스 확인
                                 ps aux | grep 'java -jar'
+                                echo '✅ 원격 서버 배포 완료'
                             "
                     """
                 }
