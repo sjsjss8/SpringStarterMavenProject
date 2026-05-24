@@ -78,9 +78,13 @@ pipeline {
             }
             post {
                 always {
-                    recordIssues(
-                        enabledForFailure: true,
-                        tool: checkStyle(pattern: '**/target/checkstyle-result.xml')
+                    // Checkstyle 결과 XML 보관 (Jenkins 아티팩트에서 확인 가능)
+                    // UI 시각화를 원하면 Jenkins에 'Warnings Next Generation' 플러그인 설치 후
+                    // 아래 archiveArtifacts를 recordIssues(tool: checkStyle(...)) 로 교체
+                    archiveArtifacts(
+                        artifacts: '**/target/checkstyle-result.xml',
+                        allowEmptyArchive: true,
+                        fingerprint: false
                     )
                 }
             }
@@ -123,9 +127,13 @@ pipeline {
                     }
                     post {
                         always {
-                            recordIssues(
-                                enabledForFailure: false,
-                                tool: spotBugs(pattern: '**/target/spotbugsXml.xml')
+                            // SpotBugs 결과 XML 보관 (Jenkins 아티팩트에서 확인 가능)
+                            // UI 시각화를 원하면 Jenkins에 'Warnings Next Generation' 플러그인 설치 후
+                            // 아래 archiveArtifacts를 recordIssues(tool: spotBugs(...)) 로 교체
+                            archiveArtifacts(
+                                artifacts: '**/target/spotbugsXml.xml',
+                                allowEmptyArchive: true,
+                                fingerprint: false
                             )
                         }
                     }
