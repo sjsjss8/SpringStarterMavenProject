@@ -153,6 +153,53 @@
                     </excludes>
                 </configuration>
             </plugin>
+
+            <!-- 보안 1: OWASP Dependency Check (라이브러리 CVE 취약점 검사) -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>9.0.9</version>
+                <configuration>
+                    <!-- CVSS 7점 이상 (High/Critical) 발견 시 빌드 실패 -->
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                    <!-- 오탐(False Positive) 예외 파일 -->
+                    <suppressionFile>owasp-suppressions.xml</suppressionFile>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                    </formats>
+                </configuration>
+            </plugin>
+
+            <!-- 보안 2: SpotBugs + FindSecBugs (소스코드 보안 버그 정적 분석) -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>4.8.3.0</version>
+                <configuration>
+                    <plugins>
+                        <!-- SQL Injection, XSS 등 보안 패턴 탐지 -->
+                        <plugin>
+                            <groupId>com.h3xstream.findsecbugs</groupId>
+                            <artifactId>findsecbugs-plugin</artifactId>
+                            <version>1.13.0</version>
+                        </plugin>
+                    </plugins>
+                </configuration>
+            </plugin>
+
+            <!-- 코드 품질: Checkstyle (코딩 컨벤션 검사) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <configLocation>google_checks.xml</configLocation>
+                    <failsOnError>false</failsOnError>
+                    <consoleOutput>true</consoleOutput>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 

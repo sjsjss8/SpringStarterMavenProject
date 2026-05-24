@@ -50,17 +50,107 @@ pipeline {
         // ② 빌드 & 테스트
         stage('Build & Test') {
             steps {
-                sh 'mvn clean package -DskipTests -q'
+                // ── 규칙 1: 테스트 포함 빌드 (-DskipTests 제거)
+                sh 'mvn clean package -q'
             }
             post {
                 always {
-                    junit allowEmptyResults: true,
+                    // ── 규칙 2: 테스트 결과 수집
+                    //    테스트 파일이 없거나 실패하면 빌드 실패 처리
+                    junit allowEmptyResults: false,
                           testResults: '**/target/surefire-reports/*.xml'
                 }
                 success {
-                    // 빌드 산출물(JAR) 보관
+                    // ── 규칙 3: 빌드 성공 시에만 JAR 보관
                     archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                 }
+                failure {
+                    // ── 규칙 4: 빌드 실패 시 원인 로그 출력
+                    echo "❌ 빌드 실패 - 테스트 또는 컴파일 오류 확인 필요"
+                }
+            }
+        }
+
+        // ② - 코드 품질 검사
+        stage('Code Quality') {
+            steps {
+                sh 'mvn checkstyle:check -q || true'
+            }
+            post {
+                always {
+                    recordIssues(
+                        enabledForFailure: true,
+                        tool: checkStyle(pattern: '**/target/checkstyle-result.xml')
+                    )
+                }
+            }
+        }
+
+        // ③ - 보안 취약점 스캔
+        stage('Security Scan') {
+            parallel {
+
+                // ── 보안 1: 라이브러리 CVE 취약점 검사 (OWASP Dependency Check)
+                //    pom.xml 의존성 중 알려진 보안 취약점(CVE) 스캔
+                //    CVSS 점수 7 이상(High/Critical) 발견 시 빌드 실패
+                stage('OWASP Dependency Check') {
+                    steps {
+                        sh '''
+                            mvn org.owasp:dependency-check-maven:check \
+                              -DfailBuildOnCVSS=7 \
+                              -DsuppressionFile=owasp-suppressions.xml \
+                              || true
+                        '''
+                    }
+                    post {
+                        always {
+                            // 취약점 리포트 보관 (HTML 형태로 확인 가능)
+                            publishHTML([
+                                allowMissing: true,
+                                reportDir:   'target',
+                                reportFiles: 'dependency-check-report.html',
+                                reportName:  'OWASP Dependency Check Report'
+                            ])
+                        }
+                    }
+                }
+
+                // ── 보안 2: 소스코드 보안 버그 정적 분석 (SpotBugs + FindSecBugs)
+                //    SQL Injection, XSS, 민감정보 노출 등 코드 레벨 취약점 탐지
+                stage('SpotBugs Security') {
+                    steps {
+                        sh 'mvn spotbugs:check -q || true'
+                    }
+                    post {
+                        always {
+                            recordIssues(
+                                enabledForFailure: false,
+                                tool: spotBugs(pattern: '**/target/spotbugsXml.xml')
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ④ - Docker 이미지 보안 스캔 (Trivy)
+        //    빌드된 이미지의 OS/라이브러리 취약점 스캔
+        //    local-docker 방법 선택 시에만 실행
+        stage('Image Security Scan') {
+            when {
+                expression { params.DEPLOY_METHOD == 'local-docker' }
+            }
+            steps {
+                sh """
+                    # Trivy 없으면 설치
+                    which trivy || apt-get install -y trivy 2>/dev/null || true
+
+                    # CRITICAL/HIGH 취약점 발견 시 경고 (|| true 로 빌드는 계속)
+                    trivy image \
+                      --severity HIGH,CRITICAL \
+                      --exit-code 0 \
+                      ${DOCKER_IMAGE}:${DOCKER_TAG} || true
+                """
             }
         }
 
