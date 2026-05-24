@@ -1,0 +1,68 @@
+# ── 운영 서버용 docker-compose (dockerhub-compose 배포 방식에서 사용) ────────
+# Jenkins가 이 파일을 원격 서버로 전송 후 docker-compose up 실행
+#
+# 환경 변수는 원격 서버의 .env 파일 또는 Jenkins 파이프라인에서 주입
+# 예시 (.env 파일):
+#   DOCKER_IMAGE=your-dockerhub-id/spring-starter-maven
+#   DOCKER_TAG=latest
+#   DB_HOST=mariadb   (같은 Compose 네트워크 내 DB 사용 시)
+#   DB_PORT=3306
+#   DB_NAME=SJSJSS
+#   DB_USERNAME=root
+#   DB_PASSWORD=secret
+
+services:
+
+  # ── Spring Boot 앱 ──────────────────────────────────────────────────────────
+  app:
+    image: ${DOCKER_IMAGE}:${DOCKER_TAG:-latest}
+    container_name: spring-app
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST:     ${DB_HOST:-mariadb}
+      DB_PORT:     ${DB_PORT:-3306}
+      DB_NAME:     ${DB_NAME:-SJSJSS}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JAVA_OPTS:   "-Xms256m -Xmx512m"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - app-network
+
+  # ── MariaDB ─────────────────────────────────────────────────────────────────
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_DATABASE:      ${DB_NAME:-SJSJSS}
+      MARIADB_USER:          ${DB_USERNAME}
+      MARIADB_PASSWORD:      ${DB_PASSWORD}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+volumes:
+  mariadb-data:
+
+networks:
+  app-network:
+    driver: bridge

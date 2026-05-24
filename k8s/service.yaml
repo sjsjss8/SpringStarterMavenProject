@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-starter-maven
+  namespace: default
+  labels:
+    app: spring-starter-maven
+spec:
+  selector:
+    app: spring-starter-maven
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80              # 외부 접속 포트 (클라우드 로드밸런서 → 파드)
+      targetPort: 8081      # 컨테이너 내부 포트
+  type: LoadBalancer        # AWS ELB / GCP LB / Azure LB 자동 프로비저닝
+                            # 로컬 클러스터(minikube)면 NodePort로 변경

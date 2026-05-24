@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-starter-maven
+  namespace: default
+  labels:
+    app: spring-starter-maven
+spec:
+  replicas: 2                       # 파드 2개 → 한 개 재시작 중에도 무중단
+  selector:
+    matchLabels:
+      app: spring-starter-maven
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1                   # 배포 중 최대 1개 초과 실행 허용
+      maxUnavailable: 0             # 배포 중 중단 파드 0개 → 완전 무중단
+  template:
+    metadata:
+      labels:
+        app: spring-starter-maven
+    spec:
+      containers:
+        - name: spring-starter-maven
+          image: IMAGE_PLACEHOLDER   # Jenkins가 빌드 번호 태그로 자동 치환
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: spring-app-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: spring-app-secret
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: spring-app-secret
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: spring-app-secret
+                  key: DB_NAME
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: spring-app-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: spring-app-secret
+                  key: DB_PASSWORD
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          # 트래픽 수신 준비 완료 여부 판단 (준비 안 되면 로드밸런서에서 제외)
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          # 파드 생존 여부 판단 (실패 시 자동 재시작)
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
