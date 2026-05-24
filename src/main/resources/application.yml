@@ -1,9 +1,10 @@
-# application.yaml (공통 설정)
+# ============================================================
+# application.yml (공통 설정)
+# ============================================================
 spring:
   profiles:
-    active: local # 기본 환경 선택 (local, dev, prod)
+    active: local
 
-# 공통 설정
 mybatis:
   mapper-locations: classpath:/static/mybatis/mapper/**/*.xml
   type-aliases-package: com.example.demo
@@ -11,7 +12,6 @@ mybatis:
     map-underscore-to-camel-case: true
     jdbc-type-for-null: NULL
     call-setters-on-nulls: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 springdoc:
   swagger-ui:
@@ -23,8 +23,13 @@ springdoc:
     path: /api-docs
 
 ---
-# application-local.yaml (로컬 환경)
+# ============================================================
+# application-local.yml (로컬 개발 환경)
+# ============================================================
 spring:
+  config:
+    activate:
+      on-profile: local
   application:
     name: SpringStarterMavenProject
   thymeleaf:
@@ -33,66 +38,49 @@ spring:
     suffix: .html
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration  # 세션 자동 구성 제외
-  config:
-    activate:
-      on-profile: local
-    
-  # DB 설정
+      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
     url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:50002}/${DB_NAME:SJSJSS}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:admin}
-
-  # Redis 설정
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      
-  # 개발 편의를 위한 설정
   devtools:
     restart:
       enabled: true
     livereload:
       enabled: true
 
-# 로깅 설정
+# 로컬에서만 SQL 쿼리 콘솔 출력
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
 logging:
-  file:
-    name: C:/test/application.log
   level:
     root: INFO
     com.example.demo: DEBUG
     org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
   logback:
     rollingpolicy:
-      max-file-size: 500MB
-      max-history: 30
-      total-size-cap: 5GB
-    
+      max-file-size: 100MB
+      max-history: 7
+
 server:
   port: 8081
 
 ---
-# application-dev.yaml (개발 서버)
+# ============================================================
+# application-dev.yml (개발 서버)
+# ============================================================
 spring:
   config:
     activate:
       on-profile: dev
-    
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://dev-db:3306/devdb
-    username: ${DB_USERNAME}  # 환경 변수 사용
+    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    
-  data:
-    redis:
-      host: dev-redis
-      port: 6379
 
 logging:
   level:
@@ -103,56 +91,45 @@ server:
   port: 8081
 
 ---
-# application-prod.yaml (운영 서버)
+# ============================================================
+# application-prod.yml (운영 서버)
+# ============================================================
 spring:
   config:
     activate:
       on-profile: prod
-    
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://prod-db:3306/proddb
+    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    
-  data:
-    redis:
-      host: prod-redis
-      port: 6379
-      password: ${REDIS_PASSWORD}
 
-  # 운영 환경에서는 개발 도구 비활성화
-  devtools:
-    restart:
-      enabled: false
-    livereload:
-      enabled: false
-
-# 운영 환경 로깅 설정
 logging:
   level:
     root: ERROR
     com.example.demo: INFO
   file:
     name: /var/log/application.log
-    max-size: 500MB
-    max-history: 30
+  logback:
+    rollingpolicy:
+      max-file-size: 500MB
+      max-history: 30
+      total-size-cap: 5GB
 
 server:
   port: 80
   tomcat:
     threads:
-      max: 200      # 최대 스레드 수
-      min-spare: 10 # 최소 유휴 스레드 수
-    max-connections: 8192     # 최대 연결 수
-    accept-count: 100        # 대기 큐 크기
+      max: 200
+      min-spare: 10
+    max-connections: 8192
+    accept-count: 100
 
-# 모니터링 설정
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics
   endpoint:
     health:
       show-details: when-authorized

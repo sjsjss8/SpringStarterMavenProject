@@ -8,21 +8,14 @@ services:
       - "8081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      # DB (mariadb 서비스 이름이 hostname으로 사용됨)
       DB_HOST:     mariadb
       DB_PORT:     3306
       DB_NAME:     ${DB_NAME:-SJSJSS}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      # Redis
-      REDIS_HOST:     redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      # JVM 튜닝 (서버 메모리에 맞게 조절)
       JAVA_OPTS: "-Xms256m -Xmx512m"
     depends_on:
       mariadb:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -39,7 +32,7 @@ services:
       MARIADB_PASSWORD:      ${DB_PASSWORD}
     volumes:
       - mariadb-data:/var/lib/mysql
-      # 초기 DDL/DML이 있으면 아래 경로에 .sql 파일 추가
+      # 초기 DDL/DML 적용 시 아래 주석 해제
       # - ./src/main/resources/db/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
@@ -50,28 +43,8 @@ services:
     networks:
       - app-network
 
-  # ── Redis ────────────────────────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    command: >
-      sh -c "redis-server
-             ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - app-network
-
-# ── Volumes & Networks ────────────────────────────────────────────────────────
 volumes:
   mariadb-data:
-  redis-data:
 
 networks:
   app-network:

@@ -18,24 +18,24 @@ import lombok.RequiredArgsConstructor;
 @Service("MemberService")
 @RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
-    
+
     private final MemberMybatisRepository memberRepository;
     private final MemberMapper memberMapper;
-    
+
     @Override
     public List<MemberResponseDto> findAll() {
         return memberRepository.findAll().stream()
                 .map(MemberResponseDto::from)
                 .collect(Collectors.toList());
     }
-    
-	@Override
-	public List<MemberResponseDto> search(MemberRequestDto requestDto) {
+
+    @Override
+    public List<MemberResponseDto> search(MemberRequestDto requestDto) {
         return memberRepository.search(requestDto).stream()
                 .map(MemberResponseDto::from)
                 .collect(Collectors.toList());
-	}
-    
+    }
+
     @Override
     public MemberResponseDto findById(String id) {
         Member member = memberRepository.findById(id);
@@ -44,51 +44,25 @@ public class MemberServiceImpl implements MemberService {
         }
         return MemberResponseDto.from(member);
     }
-    
+
     @Override
     public MemberResponseDto insert(MemberRequestDto requestDto) {
-    	  // 빌더패턴으로 DTO를 Entity로 변환 (생성자로 변환할 수도 있음)
-//        Member member = Member.builder()
-//        		.id(requestDto.getId())
-//                .name(requestDto.getName())
-//                .email(requestDto.getEmail())
-//                .build();
-//    	
-//    	  memberRepository.insert(member);
-//    	
-//        return MemberResponseDto.from(member);
-        
-    	//MapStruct로 DTO를 Entity로 변환함으로써 보일러플레이트 코드 줄임
-    	Member member = memberMapper.toEntity(requestDto);
-    	memberRepository.insert(member);
-    	
+        Member member = memberMapper.toEntity(requestDto);
+        memberRepository.insert(member);
         return memberMapper.toDto(member);
     }
-    
+
     @Override
     public MemberResponseDto update(String id, MemberRequestDto requestDto) {
-//        Member member = Member.builder()
-//                .id(id)
-//                .name(requestDto.getName())
-//                .email(requestDto.getEmail())
-//                .build();
-    	
-    	Member member = memberMapper.toEntity(requestDto);
+        Member member = memberMapper.toEntity(requestDto);
         memberRepository.update(member);
-        
         return memberMapper.toDto(member);
     }
-    
+
     @Override
     public MemberResponseDto delete(String id) {
-//        Member member = Member.builder()
-//                .id(id)
-//                .build();
-        
-    	Member member = memberMapper.toEntityById(id);
-    	
+        Member member = memberMapper.toEntityById(id);
         memberRepository.delete(member);
-        
         return memberMapper.toDto(member);
     }
 }

@@ -1,29 +1,17 @@
 # ============================================================
-# 테스트 환경 설정 (CI/CD - Jenkins, 로컬 단위 테스트)
-# MariaDB 없이 H2 인메모리 DB로 Spring Context 로딩 테스트
+# 테스트 환경 설정
+# H2 인메모리 DB 사용 - Jenkins CI에서 MariaDB 없이 실행
 # ============================================================
-
 spring:
-  # H2 인메모리 DB (MariaDB 호환 모드)
   datasource:
     url: jdbc:h2:mem:testdb;MODE=MariaDB;DATABASE_TO_LOWER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
     password:
-
-  # JPA - 엔티티가 없으므로 validate/update 불필요
-  jpa:
-    hibernate:
-      ddl-auto: none
-    show-sql: false
-
-  # Thymeleaf
   thymeleaf:
     cache: false
     prefix: classpath:/templates/
     suffix: .html
-
-  # 세션 자동 구성 제외
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
@@ -40,7 +28,6 @@ logging:
   level:
     root: WARN
     com.example.demo: INFO
-    org.springframework.web: WARN
 
 server:
   port: 8081

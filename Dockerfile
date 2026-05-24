@@ -33,7 +33,7 @@ COPY --from=builder /app/target/*.jar app.jar
 
 USER appuser
 
-EXPOSE 8080
+EXPOSE 8081
 
 # -Djava.security.egd : Tomcat 시작 속도 개선
 # JAVA_OPTS           : 외부에서 JVM 튜닝 옵션 주입 가능 (예: -Xms256m -Xmx512m)

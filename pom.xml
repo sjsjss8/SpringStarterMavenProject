@@ -11,54 +11,25 @@
 	<artifactId>SpringStarterMavenProject</artifactId>
 	<version>1.0</version>
 	<name>SpringStarterMavenProject</name>
-	<description>Demo project for Spring Boots</description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+	<description>Demo project for Spring Boot</description>
 	<properties>
 		<java.version>17</java.version>
-		<mybatis.version>1.18.30</mybatis.version>
 		<mapstruct.version>1.5.5.Final</mapstruct.version>
 		<springdoc.version>2.3.0</springdoc.version>
 	</properties>
+
     <dependencies>
-        <!-- 1. 웹 애플리케이션 필수 -->
+        <!-- ── 웹 ────────────────────────────────────────────────────────────── -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-        
-	    <!-- 웹 템플릿 엔진 -->
 	    <dependency>
 	        <groupId>org.springframework.boot</groupId>
 	        <artifactId>spring-boot-starter-thymeleaf</artifactId>
 	    </dependency>
-	    
-	    <!-- JSON 처리 -->
-	    <dependency>
-	        <groupId>com.fasterxml.jackson.core</groupId>
-	        <artifactId>jackson-databind</artifactId>
-	    </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-        </dependency>
-        
-        <!-- 2. 데이터베이스 관련 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
+
+        <!-- ── 데이터베이스 ───────────────────────────────────────────────────── -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
@@ -69,79 +40,56 @@
 			<artifactId>mariadb-java-client</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-        
-        <!-- 3. 보안 관련 -->
-<!--    <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>0.11.5</version>
-        </dependency>-->
-        
-        <!-- 4. 유틸리티 -->
+
+        <!-- ── 유틸리티 ──────────────────────────────────────────────────────── -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
-	    <!-- MapStruct -->
 	    <dependency>
 	        <groupId>org.mapstruct</groupId>
 	        <artifactId>mapstruct</artifactId>
 	        <version>${mapstruct.version}</version>
 	    </dependency>
-	    <!-- MapStruct Processor -->
 	    <dependency>
 	        <groupId>org.mapstruct</groupId>
 	        <artifactId>mapstruct-processor</artifactId>
 	        <version>${mapstruct.version}</version>
 	    </dependency>
-        
-        <!-- 5. 캐시 -->
+
+        <!-- ── API 문서화 ─────────────────────────────────────────────────────── -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- ── 모니터링 ──────────────────────────────────────────────────────── -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        
-        <!-- 6. 테스트 -->
+
+        <!-- ── 테스트 ─────────────────────────────────────────────────────────── -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- 테스트용 인메모리 DB (Jenkins CI에서 MariaDB 없이 테스트 실행) -->
+        <!-- 테스트용 인메모리 DB (Jenkins CI에서 MariaDB 없이 컨텍스트 로딩 테스트) -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
-        
-        <!-- 7. 개발 도구 -->
+
+        <!-- ── 개발 도구 ──────────────────────────────────────────────────────── -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
             <scope>runtime</scope>
             <optional>true</optional>
-        </dependency>
-        
-        <!-- 8. API 문서화 -->
-        <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.3.0</version>
-        </dependency>
-        
-        <!-- 9. 모니터링 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
     </dependencies>
 
@@ -166,9 +114,7 @@
                 <artifactId>dependency-check-maven</artifactId>
                 <version>9.0.9</version>
                 <configuration>
-                    <!-- CVSS 7점 이상 (High/Critical) 발견 시 빌드 실패 -->
                     <failBuildOnCVSS>7</failBuildOnCVSS>
-                    <!-- 오탐(False Positive) 예외 파일 -->
                     <suppressionFile>owasp-suppressions.xml</suppressionFile>
                     <formats>
                         <format>HTML</format>
@@ -177,14 +123,13 @@
                 </configuration>
             </plugin>
 
-            <!-- 보안 2: SpotBugs + FindSecBugs (소스코드 보안 버그 정적 분석) -->
+            <!-- 보안 2: SpotBugs + FindSecBugs (소스코드 보안 정적 분석) -->
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
                 <version>4.8.3.0</version>
                 <configuration>
                     <plugins>
-                        <!-- SQL Injection, XSS 등 보안 패턴 탐지 -->
                         <plugin>
                             <groupId>com.h3xstream.findsecbugs</groupId>
                             <artifactId>findsecbugs-plugin</artifactId>
@@ -194,7 +139,7 @@
                 </configuration>
             </plugin>
 
-            <!-- 코드 품질: Checkstyle (코딩 컨벤션 검사) -->
+            <!-- 코드 품질: Checkstyle -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
