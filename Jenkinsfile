@@ -112,12 +112,10 @@ pipeline {
                             mvn org.owasp:dependency-check-maven:check \
                               -DfailBuildOnCVSS=7 \
                               -DsuppressionFile=owasp-suppressions.xml \
-                              -DautoUpdate=false \
                               || true
                         '''
-                        // NVD API Key 없이 온라인 업데이트를 시도하면 403 오류 발생
-                        // -DautoUpdate=false : 로컬 캐시 DB 사용 (최초 실행 시 DB 없으면 스캔 생략)
-                        // API Key 발급 후 적용하려면 -DnvdApiKey=${NVD_API_KEY} 추가
+                        // NVD API Key 없으면 업데이트 실패(403) → || true 로 무시하고 계속 진행
+                        // API Key 발급 후 적용: -DnvdApiKey=${NVD_API_KEY} 옵션 추가
                     }
                     post {
                         always {
@@ -233,35 +231,46 @@ pipeline {
                 expression { params.DEPLOY_METHOD == 'remote-ssh' }
             }
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'deploy-server-ssh',
-                    keyFileVariable:  'SSH_KEY',
-                    usernameVariable: 'SSH_USER'
-                )]) {
-                    sh """
-                        # 원격 서버에 배포 폴더 생성
-                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
-                            ${REMOTE_USER}@${REMOTE_HOST} \\
-                            "mkdir -p ${REMOTE_PATH}"
+                script {
+                    try {
+                        withCredentials([sshUserPrivateKey(
+                            credentialsId: 'deploy-server-ssh',
+                            keyFileVariable:  'SSH_KEY',
+                            usernameVariable: 'SSH_USER'
+                        )]) {
+                            sh """
+                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    ${REMOTE_USER}@${REMOTE_HOST} \\
+                                    "mkdir -p ${REMOTE_PATH}"
 
-                        # JAR 파일 전송
-                        scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
-                            target/*.jar \\
-                            ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app.jar
+                                scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    target/*.jar \\
+                                    ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app.jar
 
-                        # 기존 프로세스 종료 후 재시작
-                        ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
-                            ${REMOTE_USER}@${REMOTE_HOST} "
-                                pkill -f 'java -jar' || true
-                                sleep 2
-                                nohup java -jar ${REMOTE_PATH}/app.jar \\
-                                  --spring.profiles.active=prod \\
-                                  > ${REMOTE_PATH}/app.log 2>&1 &
-                                sleep 3
-                                ps aux | grep 'java -jar'
-                                echo '✅ 원격 서버 배포 완료'
-                            "
-                    """
+                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    ${REMOTE_USER}@${REMOTE_HOST} "
+                                        pkill -f 'java -jar' || true
+                                        sleep 2
+                                        nohup java -jar ${REMOTE_PATH}/app.jar \\
+                                          --spring.profiles.active=prod \\
+                                          > ${REMOTE_PATH}/app.log 2>&1 &
+                                        sleep 3
+                                        ps aux | grep 'java -jar'
+                                        echo '✅ 원격 서버 배포 완료'
+                                    "
+                            """
+                        }
+                    } catch (Exception e) {
+                        echo "⚠ SSH 배포 사전 조건 미충족 - 배포를 건너뜁니다"
+                        echo "  원인: ${e.message}"
+                        echo "  ── 확인 사항 ──────────────────────────────────────"
+                        echo "  1. Jenkins 관리 → Credentials → Global → Add Credentials"
+                        echo "     Kind: SSH Username with private key"
+                        echo "     ID  : deploy-server-ssh"
+                        echo "  2. Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 값 설정"
+                        echo "  ───────────────────────────────────────────────────"
+                        unstable("SSH credentials 'deploy-server-ssh' 미등록 또는 서버 연결 실패")
+                    }
                 }
             }
         }

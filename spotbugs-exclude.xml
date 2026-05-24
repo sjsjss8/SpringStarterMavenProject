@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+
+    <!--
+        EI_EXPOSE_REP / EI_EXPOSE_REP2 : 외부 가변 객체 노출 경고
+        Spring @RequiredArgsConstructor DI 패턴에서 발생하는 오탐(False Positive)
+        IoC 컨테이너가 빈의 생명주기를 관리하므로 실제 보안 위협 없음
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+</FindBugsFilter>
