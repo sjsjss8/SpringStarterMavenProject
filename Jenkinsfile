@@ -212,8 +212,13 @@ pipeline {
                 sh """
                     mkdir -p /var/deploy
 
-                    cp target/*.jar /var/deploy/app.jar
-                    cp target/*.jar /var/deploy/app-${DOCKER_TAG}.jar
+                    # SpotBugs가 target/에 내려받는 플러그인 JAR(findsecbugs 등) 제외하고
+                    # 실제 앱 JAR만 선택
+                    APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
+                    echo "배포 대상 JAR: \$APP_JAR"
+
+                    cp "\$APP_JAR" /var/deploy/app.jar
+                    cp "\$APP_JAR" /var/deploy/app-${DOCKER_TAG}.jar
 
                     echo "✅ 배포 완료 → C:\\\\SJSJSS\\\\Project\\\\01.File\\\\StarterMavenProject\\\\app.jar"
                     ls -lh /var/deploy/
@@ -243,8 +248,9 @@ pipeline {
                                     ${REMOTE_USER}@${REMOTE_HOST} \\
                                     "mkdir -p ${REMOTE_PATH}"
 
+                                APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
                                 scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
-                                    target/*.jar \\
+                                    "\$APP_JAR" \\
                                     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app.jar
 
                                 ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
