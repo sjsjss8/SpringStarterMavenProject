@@ -112,17 +112,22 @@ pipeline {
                             mvn org.owasp:dependency-check-maven:check \
                               -DfailBuildOnCVSS=7 \
                               -DsuppressionFile=owasp-suppressions.xml \
+                              -DautoUpdate=false \
                               || true
                         '''
+                        // NVD API Key 없이 온라인 업데이트를 시도하면 403 오류 발생
+                        // -DautoUpdate=false : 로컬 캐시 DB 사용 (최초 실행 시 DB 없으면 스캔 생략)
+                        // API Key 발급 후 적용하려면 -DnvdApiKey=${NVD_API_KEY} 추가
                     }
                     post {
                         always {
-                            publishHTML([
-                                allowMissing: true,
-                                reportDir:   'target',
-                                reportFiles: 'dependency-check-report.html',
-                                reportName:  'OWASP Dependency Check Report'
-                            ])
+                            // OWASP 리포트 보관 (Jenkins 아티팩트에서 HTML 파일 직접 다운로드)
+                            // UI 내 렌더링을 원하면 Jenkins에 'HTML Publisher' 플러그인 설치
+                            archiveArtifacts(
+                                artifacts: 'target/dependency-check-report.html',
+                                allowEmptyArchive: true,
+                                fingerprint: false
+                            )
                         }
                     }
                 }
