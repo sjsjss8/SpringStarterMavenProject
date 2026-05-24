@@ -36,6 +36,10 @@ build/
 *.log
 logs/
 
+### Environment Variables ###
+.env
+!.env.example
+
 ### Application Properties ###
 application-*.yml
 application-*.properties

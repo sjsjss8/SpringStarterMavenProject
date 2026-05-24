@@ -57,6 +57,9 @@ pipeline {
         REMOTE_USER   = 'ubuntu'                           // ← 원격 서버 계정으로 변경
         REMOTE_PATH   = '/home/ubuntu/app'
 
+        // [local-docker / local-windows-docker] DB Credentials ID
+        DB_CREDENTIALS = 'db-credentials'
+
         // [dockerhub-compose / kubernetes] Docker Hub Credentials ID
         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
 
@@ -277,35 +280,54 @@ PS1EOF
             }
             steps {
                 script {
-                    sh """
-                        mkdir -p /var/deploy
+                    try {
+                        withCredentials([usernamePassword(
+                            credentialsId: "${DB_CREDENTIALS}",
+                            usernameVariable: 'DB_USER',
+                            passwordVariable: 'DB_PASS'
+                        )]) {
+                            sh """
+                                mkdir -p /var/deploy
 
-                        APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
-                        echo "배포 대상 JAR: \$APP_JAR"
+                                APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
+                                echo "배포 대상 JAR: \$APP_JAR"
 
-                        # ── Windows 폴더에 JAR 복사 ────────────────────────────
-                        cp "\$APP_JAR" /var/deploy/app.jar
-                        cp "\$APP_JAR" /var/deploy/app-${DOCKER_TAG}.jar
-                        echo "✅ JAR 복사 완료 → C:\\\\SJSJSS\\\\Project\\\\01.File\\\\StarterMavenProject\\\\app.jar"
+                                # ── Windows 폴더에 JAR 복사 ────────────────────────────
+                                cp "\$APP_JAR" /var/deploy/app.jar
+                                cp "\$APP_JAR" /var/deploy/app-${DOCKER_TAG}.jar
+                                echo "✅ JAR 복사 완료 → C:\\\\SJSJSS\\\\Project\\\\01.File\\\\StarterMavenProject\\\\app.jar"
 
-                        # ── Docker 컨테이너 실행 ───────────────────────────────
-                        docker stop ${LOCAL_CONTAINER} || true
-                        docker rm   ${LOCAL_CONTAINER} || true
+                                # ── Docker 컨테이너 실행 ───────────────────────────────
+                                docker stop ${LOCAL_CONTAINER} || true
+                                docker rm   ${LOCAL_CONTAINER} || true
 
-                        docker run -d \\
-                          --name ${LOCAL_CONTAINER} \\
-                          -p 8081:8081 \\
-                          -e SPRING_PROFILES_ACTIVE=local \\
-                          -e DB_HOST=host.docker.internal \\
-                          -e DB_PORT=50002 \\
-                          -e DB_NAME=SJSJSS \\
-                          -e DB_USERNAME=root \\
-                          -e DB_PASSWORD=admin \\
-                          ${DOCKER_IMAGE}:latest
+                                docker run -d \\
+                                  --name ${LOCAL_CONTAINER} \\
+                                  -p 8081:8081 \\
+                                  -e SPRING_PROFILES_ACTIVE=local \\
+                                  -e DB_HOST=host.docker.internal \\
+                                  -e DB_PORT=50002 \\
+                                  -e DB_NAME=SJSJSS \\
+                                  -e DB_USERNAME=\$DB_USER \\
+                                  -e DB_PASSWORD=\$DB_PASS \\
+                                  ${DOCKER_IMAGE}:latest
 
-                        echo "✅ 컨테이너 실행 완료 → http://localhost:8081"
-                        ls -lh /var/deploy/
-                    """
+                                echo "✅ 컨테이너 실행 완료 → http://localhost:8081"
+                                ls -lh /var/deploy/
+                            """
+                        }
+                    } catch (Exception e) {
+                        echo "⚠ DB Credentials 미등록 - 배포를 건너뜁니다"
+                        echo "  원인: ${e.message}"
+                        echo "  ── 확인 사항 ──────────────────────────────────────"
+                        echo "  Jenkins 관리 → Credentials → Global → Add Credentials"
+                        echo "    Kind    : Username with password"
+                        echo "    ID      : db-credentials"
+                        echo "    Username: DB 계정 (예: root)"
+                        echo "    Password: DB 비밀번호"
+                        echo "  ───────────────────────────────────────────────────"
+                        unstable("DB Credentials 'db-credentials' 미등록")
+                    }
                 }
             }
         }
@@ -319,23 +341,42 @@ PS1EOF
             }
             steps {
                 script {
-                    sh """
-                        docker stop ${LOCAL_CONTAINER} || true
-                        docker rm   ${LOCAL_CONTAINER} || true
+                    try {
+                        withCredentials([usernamePassword(
+                            credentialsId: "${DB_CREDENTIALS}",
+                            usernameVariable: 'DB_USER',
+                            passwordVariable: 'DB_PASS'
+                        )]) {
+                            sh """
+                                docker stop ${LOCAL_CONTAINER} || true
+                                docker rm   ${LOCAL_CONTAINER} || true
 
-                        docker run -d \\
-                          --name ${LOCAL_CONTAINER} \\
-                          -p 8081:8081 \\
-                          -e SPRING_PROFILES_ACTIVE=local \\
-                          -e DB_HOST=host.docker.internal \\
-                          -e DB_PORT=50002 \\
-                          -e DB_NAME=SJSJSS \\
-                          -e DB_USERNAME=root \\
-                          -e DB_PASSWORD=admin \\
-                          ${DOCKER_IMAGE}:latest
+                                docker run -d \\
+                                  --name ${LOCAL_CONTAINER} \\
+                                  -p 8081:8081 \\
+                                  -e SPRING_PROFILES_ACTIVE=local \\
+                                  -e DB_HOST=host.docker.internal \\
+                                  -e DB_PORT=50002 \\
+                                  -e DB_NAME=SJSJSS \\
+                                  -e DB_USERNAME=\$DB_USER \\
+                                  -e DB_PASSWORD=\$DB_PASS \\
+                                  ${DOCKER_IMAGE}:latest
 
-                        echo "✅ 컨테이너 실행 완료 → http://localhost:8081"
-                    """
+                                echo "✅ 컨테이너 실행 완료 → http://localhost:8081"
+                            """
+                        }
+                    } catch (Exception e) {
+                        echo "⚠ DB Credentials 미등록 - 배포를 건너뜁니다"
+                        echo "  원인: ${e.message}"
+                        echo "  ── 확인 사항 ──────────────────────────────────────"
+                        echo "  Jenkins 관리 → Credentials → Global → Add Credentials"
+                        echo "    Kind    : Username with password"
+                        echo "    ID      : db-credentials"
+                        echo "    Username: DB 계정 (예: root)"
+                        echo "    Password: DB 비밀번호"
+                        echo "  ───────────────────────────────────────────────────"
+                        unstable("DB Credentials 'db-credentials' 미등록")
+                    }
                 }
             }
         }
