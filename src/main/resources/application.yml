@@ -44,12 +44,18 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate     # 엔티티-DB 스키마 일치 여부만 검증. 자동 변경 금지
+      naming:
+        # ⚠ 기본값(SpringPhysicalNamingStrategy)은 @Table(name="Member") 같은 명시 이름까지
+        #    전부 소문자로 변환해 버린다. 리눅스 MariaDB(대소문자 구분)에서는
+        #    Member ≠ member 가 되어 Schema-validation 실패.
+        # → 표준 전략으로 바꿔서 @Table 의 케이스를 그대로 보존.
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: false          # SQL 로그는 로컬에서만 켜기
     open-in-view: false      # OSIV 끄기 — Lazy 로딩 사고를 컴파일 단계에서 노출
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.MariaDBDialect
+        # dialect 는 Hibernate 6 이 자동 감지 — 명시 시 HHH90000025 deprecation 경고 발생
 
 
 # ── MyBatis 설정 ─────────────────────────────────────────────────────────────
