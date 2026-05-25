@@ -54,7 +54,7 @@
           JAR 내부 설정보다 자동으로 우선 적용됨
         -->
         <file>
-            <source>target/${project.artifactId}-${project.version}.jar</source>
+            <source>target/app.jar</source>
             <destName>app.jar</destName>
             <outputDirectory>/</outputDirectory>
         </file>

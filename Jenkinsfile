@@ -113,7 +113,7 @@ pipeline {
                           testResults: '**/target/surefire-reports/*.xml'
                 }
                 success {
-                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    archiveArtifacts artifacts: 'target/app.jar', fingerprint: true
                 }
                 failure {
                     echo "❌ 빌드 실패 - 테스트 또는 컴파일 오류 확인 필요"
@@ -273,9 +273,8 @@ pipeline {
                                     ${REMOTE_USER}@${REMOTE_HOST} \\
                                     "mkdir -p ${REMOTE_PATH}"
 
-                                APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
                                 scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
-                                    "\$APP_JAR" \\
+                                    target/app.jar \\
                                     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app-new.jar
 
                                 ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
@@ -450,9 +449,8 @@ pipeline {
                                 # JAR 전송
                                 ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                                     ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${REMOTE_PATH}"
-                                APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
                                 scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
-                                    "\$APP_JAR" \\
+                                    target/app.jar \\
                                     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app-new.jar
 
                                 ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\

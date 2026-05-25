@@ -65,7 +65,7 @@ RUN  ./mvnw dependency:go-offline -q
 COPY src ./src
 
 # 빌드 실행: 테스트 생략(-DskipTests)하고 JAR 파일만 생성
-# -q: quiet 모드. 결과물: target/SpringStarterMavenProject-1.0.jar
+# -q: quiet 모드. 결과물: target/app.jar (pom.xml <finalName>app</finalName>으로 고정)
 RUN  ./mvnw clean package -DskipTests -q
 
 

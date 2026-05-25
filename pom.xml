@@ -43,7 +43,7 @@
       프로젝트 식별자 (Maven 좌표)
         groupId   : 조직/팀 단위 네임스페이스 (보통 도메인 역순, 예: com.회사명)
         artifactId: 프로젝트 이름 (JAR 파일명의 기반)
-        version   : 프로젝트 버전 → 최종 결과물: SpringStarterMavenProject-1.0.jar
+        version   : 프로젝트 버전 → 최종 결과물: app.jar (<finalName>app</finalName>으로 고정)
     -->
 	<groupId>com.example</groupId>
 	<artifactId>SpringStarterMavenProject</artifactId>
@@ -248,6 +248,9 @@
       ════════════════════════════════════════════════════════
     -->
     <build>
+        <!-- JAR 파일명을 버전 없이 고정 → 배포 스크립트·Dockerfile에서 항상 app.jar 참조 가능 -->
+        <finalName>app</finalName>
+
         <plugins>
 
             <!--
