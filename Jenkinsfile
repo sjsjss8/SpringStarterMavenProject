@@ -109,6 +109,22 @@ pipeline {
             }
         }
 
+        // ① - 1 배포 방법 결정 (Cron 자동 실행 시 server-jar 고정, 수동 실행 시 선택값 사용)
+        stage('Set Deploy Method') {
+            steps {
+                script {
+                    def cronCauses = currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')
+                    if (cronCauses) {
+                        env.EFFECTIVE_DEPLOY = 'server-jar'
+                        echo "⏰ Cron 트리거 감지 → DEPLOY_METHOD: server-jar 고정"
+                    } else {
+                        env.EFFECTIVE_DEPLOY = params.DEPLOY_METHOD
+                        echo "👤 수동 실행 → DEPLOY_METHOD: ${params.DEPLOY_METHOD}"
+                    }
+                }
+            }
+        }
+
         // ② 빌드 & 테스트
         stage('Build & Test') {
             steps {
@@ -166,7 +182,7 @@ pipeline {
         stage('Docker Build') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['server-docker', 'server-k8s', 'package-docker']
+                    env.EFFECTIVE_DEPLOY in ['server-docker', 'server-k8s', 'package-docker']
                 }
             }
             steps {
@@ -180,7 +196,7 @@ pipeline {
         stage('Image Security Scan') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['server-docker', 'server-k8s', 'package-docker']
+                    env.EFFECTIVE_DEPLOY in ['server-docker', 'server-k8s', 'package-docker']
                 }
             }
             steps {
@@ -198,7 +214,7 @@ pipeline {
         stage('Docker Hub Push') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['server-docker', 'server-k8s']
+                    env.EFFECTIVE_DEPLOY in ['server-docker', 'server-k8s']
                 }
             }
             steps {
@@ -240,7 +256,7 @@ pipeline {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: server-jar') {
             when {
-                expression { params.DEPLOY_METHOD == 'server-jar' }
+                expression { env.EFFECTIVE_DEPLOY == 'server-jar' }
             }
             steps {
                 script {
@@ -305,7 +321,7 @@ pipeline {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: server-jar-zip') {
             when {
-                expression { params.DEPLOY_METHOD == 'server-jar-zip' }
+                expression { env.EFFECTIVE_DEPLOY == 'server-jar-zip' }
             }
             steps {
                 script {
@@ -417,7 +433,7 @@ pipeline {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: server-blue-green') {
             when {
-                expression { params.DEPLOY_METHOD == 'server-blue-green' }
+                expression { env.EFFECTIVE_DEPLOY == 'server-blue-green' }
             }
             steps {
                 script {
@@ -559,7 +575,7 @@ pipeline {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: server-docker') {
             when {
-                expression { params.DEPLOY_METHOD == 'server-docker' }
+                expression { env.EFFECTIVE_DEPLOY == 'server-docker' }
             }
             steps {
                 script {
@@ -624,7 +640,7 @@ pipeline {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: server-k8s') {
             when {
-                expression { params.DEPLOY_METHOD == 'server-k8s' }
+                expression { env.EFFECTIVE_DEPLOY == 'server-k8s' }
             }
             steps {
                 script {
@@ -692,7 +708,7 @@ pipeline {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: package-zip') {
             when {
-                expression { params.DEPLOY_METHOD == 'package-zip' }
+                expression { env.EFFECTIVE_DEPLOY == 'package-zip' }
             }
             steps {
                 sh """
@@ -717,7 +733,7 @@ pipeline {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: package-docker') {
             when {
-                expression { params.DEPLOY_METHOD == 'package-docker' }
+                expression { env.EFFECTIVE_DEPLOY == 'package-docker' }
             }
             steps {
                 sh """
@@ -784,7 +800,7 @@ SHEOF
             ────────────────────────────
             Job    : ${env.JOB_NAME}
             Build  : #${env.BUILD_NUMBER}
-            Method : ${params.DEPLOY_METHOD}
+            Method : ${env.EFFECTIVE_DEPLOY}
             ────────────────────────────
             """
         }
