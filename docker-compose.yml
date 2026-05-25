@@ -32,8 +32,8 @@ services:
     # build와 image를 함께 쓰면: Dockerfile로 빌드하고 image 이름으로 태깅
     # → "docker-compose push"로 Docker Hub에 올릴 때 이 이름으로 올라감
 
-    container_name: spring-app  # 컨테이너 이름 지정. 없으면 자동 생성됨(예: project_app_1)
-                                 # docker exec spring-app bash 처럼 이름으로 직접 접근 가능
+    container_name: spring-starter-app   # 프로젝트 prefix 로 다른 프로젝트와 충돌 회피
+                                          # docker exec spring-starter-app bash 처럼 이름으로 직접 접근 가능
 
     ports:
       - "8081:8081"  # "호스트포트:컨테이너포트" 매핑
@@ -67,7 +67,8 @@ services:
     image: mariadb:10.11   # MariaDB 10.11 LTS 버전 (2028년까지 장기 지원)
                            # 태그를 명시하지 않으면 'latest'가 되어 예상치 못한 버전 업그레이드 발생 가능
 
-    container_name: mariadb
+    container_name: spring-starter-mariadb   # 프로젝트 prefix 로 다른 프로젝트의 mariadb 와 충돌 회피
+                                              # ⚠ 서비스 이름(mariadb) 은 그대로 — 앱은 DB_HOST=mariadb 로 접근
 
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}  # root 계정 비밀번호. 앱 접속 계정과 별도로 관리

@@ -31,7 +31,7 @@ services:
     # ${DOCKER_IMAGE}: Jenkins에서 주입 (예: myid/spring-starter-maven)
     # ${DOCKER_TAG}  : Jenkins 빌드 번호 태그 (예: build-42). 없으면 latest
 
-    container_name: spring-app
+    container_name: spring-starter-app   # 프로젝트 prefix 로 충돌 회피
     restart: unless-stopped  # 서버 재부팅 또는 비정상 종료 후 자동 재시작
 
     ports:
@@ -69,7 +69,7 @@ services:
   # ── MariaDB ─────────────────────────────────────────────────────────────────
   mariadb:
     image: mariadb:10.11
-    container_name: mariadb
+    container_name: spring-starter-mariadb   # 프로젝트 prefix 로 충돌 회피 (서비스명 mariadb 는 유지)
     restart: unless-stopped
 
     environment:
