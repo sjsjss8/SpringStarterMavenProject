@@ -6,11 +6,9 @@ pipeline {
         choice(
             name: 'DEPLOY_METHOD',
             choices: [
-                'local-jar',
-                'local-jar-docker',
-                'local-docker',
                 'server-jar',
                 'server-jar-zip',
+                'server-blue-green',
                 'server-docker',
                 'server-k8s',
                 'package-zip',
@@ -18,62 +16,49 @@ pipeline {
             ],
             description: '''── 배포 방법을 선택하세요 ──────────────────────────────────────────
 
-  [ 내 PC에 배포 ]
-
-  local-jar
-    빌드된 JAR 파일을 이 PC의 Windows 폴더에 복사 (앱 실행 X, 파일만 저장)
-    결과 → C:\\SJSJSS\\Project\\01.File\\StarterMavenProject\\app.jar
-    사전 조건 : Jenkins 컨테이너에 해당 폴더 볼륨 마운트 설정 필요
-
-  local-jar-docker
-    JAR를 Windows 폴더에 저장하고 Docker 이미지로 만들어 컨테이너로 즉시 실행
-    결과 1 → C:\\SJSJSS\\Project\\01.File\\StarterMavenProject\\app.jar (파일 저장)
-    결과 2 → http://localhost:8081 (컨테이너 실행)
-    사전 조건 : Jenkins 볼륨 마운트 설정 + Docker Desktop 실행 중
-
-  local-docker
-    빌드한 앱을 Docker 이미지로 만들어 현재 PC에서 컨테이너로 즉시 실행
-    결과 → 브라우저에서 http://localhost:8081 로 바로 접속 가능
-    사전 조건 : Docker Desktop 실행 중
-
   [ 원격 서버에 배포 ]
 
   server-jar
-    빌드된 JAR 파일만 원격 서버에 SSH로 전송 후 앱 자동 실행 (설정 파일 별도 관리)
-    결과 → 원격 서버에서 앱 구동 (서버 IP:8081 접속)
-    사전 조건 : Jenkinsfile 내 REMOTE_HOST/USER/PATH 설정 + SSH 키 등록
+    빌드된 JAR 파일을 SSH로 원격 서버에 전송 후 앱 재시작
+    결과 → 원격 서버에서 앱 구동 (서버 IP:8080 접속)
+    특징 : 가장 단순한 배포. 설정 파일은 서버에서 별도 관리
+    사전 조건 : deploy-server-ssh 등록 + REMOTE_HOST/USER/PATH 설정
 
   server-jar-zip  ★ B2B 고객사 서버 자동 배포
-    온프레미스 ZIP 패키지(JAR + 설정 + 스크립트)를 원격 서버에 전송 후 자동 설치/업데이트
+    온프레미스 ZIP 패키지(JAR + 설정 + 스크립트)를 SSH로 전송 후 자동 설치/업데이트
     결과 → 원격 서버에서 app.jar + bin/ + mapper/ 업데이트, 앱 재시작
     특징 : config/application.yml 은 최초 1회만 복사 (이후 업데이트 시 기존 설정 보존)
-    사전 조건 : Jenkinsfile 내 REMOTE_HOST/USER/PATH 설정 + SSH 키 등록
+    사전 조건 : deploy-server-ssh 등록 + REMOTE_HOST/USER/PATH 설정
+
+  server-blue-green  ★ 무중단 배포 (Zero-downtime)
+    Blue/Green 두 인스턴스를 번갈아 배포하고 Nginx가 트래픽을 순간 전환
+    결과 → 서비스 중단 없이 신규 버전으로 교체 (헬스체크 실패 시 자동 롤백)
+    특징 : Blue(8081) ↔ Green(8082) 포트 전환 방식. 현업 무중단 배포 표준
+    사전 조건 : deploy-server-ssh 등록 + Nginx 설치 + sudo 권한 설정
 
   server-docker  ★ 현업 표준 (중소규모/SaaS)
     Docker 이미지를 빌드해 Docker Hub에 올린 뒤 원격 서버에서 docker-compose로 실행
-    결과 → 원격 서버에서 컨테이너 구동 (서버 IP:8081 접속)
-    사전 조건 : Docker Hub Credentials(dockerhub-credentials) + SSH 키(deploy-server-ssh) 등록
+    결과 → 원격 서버에서 컨테이너 구동 (서버 IP:8080 접속)
+    사전 조건 : dockerhub-credentials + deploy-server-ssh 등록
 
   server-k8s  ★ 현업 표준 (대규모/클라우드/SaaS)
     Docker 이미지를 빌드해 레지스트리에 올린 뒤 Kubernetes 클러스터에 자동 배포
     결과 → K8s 클러스터에서 롤링 업데이트 구동 (LoadBalancer IP:80 접속)
-    사전 조건 : K8s 클러스터 + kubeconfig Credentials(kubeconfig) + Docker Hub Credentials 등록
+    사전 조건 : dockerhub-credentials + kubeconfig Secret file 등록
 
   [ 고객사 납품용 패키지 생성 ]
 
   package-zip  ★ B2B 고객사 설치형 (JAR 패키지)
     JAR + 설정 파일 템플릿 + SQL 매퍼 + 시작/종료 스크립트를 ZIP으로 패키징
     결과 → {앱명}-{버전}-release.zip (Jenkins Artifacts에서 다운로드)
-    내용 : app.jar / config/application.yml / mapper/*.xml / bin/start.sh 등
     사용 : 고객사 서버에 JDK 17만 있으면 ZIP 해제 후 config 수정 → 실행
     사전 조건 : 없음 (빌드만 되면 즉시 사용 가능)
 
-  package-docker  ★ B2B 고객사 설치형 (Docker 패키지)
+  package-docker  ★ B2B 고객사 설치형 (Docker 패키지 / 폐쇄망)
     Docker 이미지를 tar.gz로 저장하고 docker-compose와 함께 ZIP으로 패키징
     결과 → {앱명}-{버전}-docker-release.zip (Jenkins Artifacts에서 다운로드)
-    내용 : image.tar.gz / docker-compose.yml / INSTALL.md / load-and-run.sh
     사용 : 인터넷 없는 폐쇄망 고객사 서버에서도 Docker만 있으면 즉시 설치 가능
-    사전 조건 : Docker Desktop 또는 Docker Engine 실행 중
+    사전 조건 : Docker Engine 실행 중
 
 ────────────────────────────────────────────────────────────────'''
         )
@@ -85,16 +70,10 @@ pipeline {
         DOCKER_IMAGE  = "your-dockerhub-id/${APP_NAME}"   // ← DockerHub ID로 변경
         DOCKER_TAG    = "${env.BUILD_NUMBER}"
 
-        // [local-docker / local-jar-docker] 컨테이너 이름
-        LOCAL_CONTAINER = 'spring-app'
-
-        // [server-jar / server-jar-zip / server-docker] 원격 서버 정보
+        // [server-jar / server-jar-zip / server-blue-green / server-docker] 원격 서버 정보
         REMOTE_HOST   = '원격서버IP'                       // ← 원격 서버 IP로 변경
         REMOTE_USER   = 'ubuntu'                           // ← 원격 서버 계정으로 변경
         REMOTE_PATH   = '/home/ubuntu/app'
-
-        // [local-docker / local-jar-docker] DB Credentials ID
-        DB_CREDENTIALS = 'db-credentials'
 
         // [server-docker / server-k8s] Docker Hub Credentials ID
         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
@@ -102,6 +81,10 @@ pipeline {
         // [server-k8s] kubeconfig Credentials ID & 네임스페이스
         KUBECONFIG_CREDENTIALS = 'kubeconfig'
         K8S_NAMESPACE          = 'default'
+
+        // [server-blue-green] Blue / Green 포트
+        BLUE_PORT  = '8081'
+        GREEN_PORT = '8082'
     }
 
     tools {
@@ -201,7 +184,7 @@ pipeline {
         stage('Docker Build') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['local-docker', 'local-jar-docker', 'server-docker', 'server-k8s', 'package-docker']
+                    params.DEPLOY_METHOD in ['server-docker', 'server-k8s', 'package-docker']
                 }
             }
             steps {
@@ -215,7 +198,7 @@ pipeline {
         stage('Image Security Scan') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['local-docker', 'local-jar-docker', 'server-docker', 'server-k8s', 'package-docker']
+                    params.DEPLOY_METHOD in ['server-docker', 'server-k8s', 'package-docker']
                 }
             }
             steps {
@@ -260,7 +243,7 @@ pipeline {
                         echo "    Kind    : Username with password"
                         echo "    ID      : dockerhub-credentials"
                         echo "    Username: Docker Hub 아이디"
-                        echo "    Password: Docker Hub 비밀번호 또는 Access Token"
+                        echo "    Password: Docker Hub Access Token"
                         echo "  ───────────────────────────────────────────────────"
                         unstable("Docker Hub Credentials 'dockerhub-credentials' 미등록 또는 Push 실패")
                     }
@@ -269,160 +252,7 @@ pipeline {
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [local-jar] 빌드된 JAR를 내 PC Windows 폴더에 복사 (앱 실행 X)
-        //   사전 조건 : Jenkins 컨테이너 실행 시 볼륨 마운트 필요
-        //     -v "C:\SJSJSS\Project\01.File\StarterMavenProject:/var/deploy"
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: local-jar') {
-            when {
-                expression { params.DEPLOY_METHOD == 'local-jar' }
-            }
-            steps {
-                sh """
-                    mkdir -p /var/deploy
-
-                    APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
-                    echo "배포 대상 JAR: \$APP_JAR"
-
-                    cp "\$APP_JAR" /var/deploy/app.jar
-                    cp "\$APP_JAR" /var/deploy/app-${DOCKER_TAG}.jar
-
-                    # ── 수동 실행 스크립트 생성 (더블클릭으로 실행 가능) ──────────
-                    cat > /var/deploy/run.bat << 'BATEOF'
-@echo off
-echo Starting Spring Boot app...
-"C:\\SJSJSS\\Project\\0.jdk\\jdk-17.0.12\\bin\\java.exe" ^
-  -Dspring.profiles.active=local ^
-  -jar "C:\\SJSJSS\\Project\\01.File\\StarterMavenProject\\app.jar"
-pause
-BATEOF
-
-                    cat > /var/deploy/run.ps1 << 'PS1EOF'
-& "C:\\SJSJSS\\Project\\0.jdk\\jdk-17.0.12\\bin\\java.exe" `
-  -Dspring.profiles.active=local `
-  -jar "C:\\SJSJSS\\Project\\01.File\\StarterMavenProject\\app.jar"
-PS1EOF
-
-                    echo "✅ 배포 완료 → C:\\\\SJSJSS\\\\Project\\\\01.File\\\\StarterMavenProject\\\\app.jar"
-                    ls -lh /var/deploy/
-                """
-            }
-        }
-
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [local-jar-docker] JAR를 내 PC 폴더에 저장 + Docker 컨테이너로 즉시 실행
-        //   사전 조건 : Jenkins 볼륨 마운트 + Docker Desktop + db-credentials 등록
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: local-jar-docker') {
-            when {
-                expression { params.DEPLOY_METHOD == 'local-jar-docker' }
-            }
-            steps {
-                script {
-                    try {
-                        withCredentials([usernamePassword(
-                            credentialsId: "${DB_CREDENTIALS}",
-                            usernameVariable: 'DB_USER',
-                            passwordVariable: 'DB_PASS'
-                        )]) {
-                            sh """
-                                mkdir -p /var/deploy
-
-                                APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
-                                echo "배포 대상 JAR: \$APP_JAR"
-
-                                # ── Windows 폴더에 JAR 복사 ────────────────────────────
-                                cp "\$APP_JAR" /var/deploy/app.jar
-                                cp "\$APP_JAR" /var/deploy/app-${DOCKER_TAG}.jar
-                                echo "✅ JAR 복사 완료 → C:\\\\SJSJSS\\\\Project\\\\01.File\\\\StarterMavenProject\\\\app.jar"
-
-                                # ── Docker 컨테이너 실행 ───────────────────────────────
-                                docker stop ${LOCAL_CONTAINER} || true
-                                docker rm   ${LOCAL_CONTAINER} || true
-
-                                docker run -d \\
-                                  --name ${LOCAL_CONTAINER} \\
-                                  -p 8081:8081 \\
-                                  -e SPRING_PROFILES_ACTIVE=local \\
-                                  -e DB_HOST=host.docker.internal \\
-                                  -e DB_PORT=50002 \\
-                                  -e DB_NAME=SJSJSS \\
-                                  -e DB_USERNAME=\$DB_USER \\
-                                  -e DB_PASSWORD=\$DB_PASS \\
-                                  ${DOCKER_IMAGE}:latest
-
-                                echo "✅ 컨테이너 실행 완료 → http://localhost:8081"
-                                ls -lh /var/deploy/
-                            """
-                        }
-                    } catch (Exception e) {
-                        echo "⚠ DB Credentials 미등록 - 배포를 건너뜁니다"
-                        echo "  원인: ${e.message}"
-                        echo "  ── 확인 사항 ──────────────────────────────────────"
-                        echo "  Jenkins 관리 → Credentials → Global → Add Credentials"
-                        echo "    Kind    : Username with password"
-                        echo "    ID      : db-credentials"
-                        echo "    Username: DB 계정 (예: root)"
-                        echo "    Password: DB 비밀번호"
-                        echo "  ───────────────────────────────────────────────────"
-                        unstable("DB Credentials 'db-credentials' 미등록")
-                    }
-                }
-            }
-        }
-
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [local-docker] Docker 이미지 빌드 후 내 PC에서 컨테이너로 즉시 실행
-        //   사전 조건 : Docker Desktop + db-credentials 등록
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: local-docker') {
-            when {
-                expression { params.DEPLOY_METHOD == 'local-docker' }
-            }
-            steps {
-                script {
-                    try {
-                        withCredentials([usernamePassword(
-                            credentialsId: "${DB_CREDENTIALS}",
-                            usernameVariable: 'DB_USER',
-                            passwordVariable: 'DB_PASS'
-                        )]) {
-                            sh """
-                                docker stop ${LOCAL_CONTAINER} || true
-                                docker rm   ${LOCAL_CONTAINER} || true
-
-                                docker run -d \\
-                                  --name ${LOCAL_CONTAINER} \\
-                                  -p 8081:8081 \\
-                                  -e SPRING_PROFILES_ACTIVE=local \\
-                                  -e DB_HOST=host.docker.internal \\
-                                  -e DB_PORT=50002 \\
-                                  -e DB_NAME=SJSJSS \\
-                                  -e DB_USERNAME=\$DB_USER \\
-                                  -e DB_PASSWORD=\$DB_PASS \\
-                                  ${DOCKER_IMAGE}:latest
-
-                                echo "✅ 컨테이너 실행 완료 → http://localhost:8081"
-                            """
-                        }
-                    } catch (Exception e) {
-                        echo "⚠ DB Credentials 미등록 - 배포를 건너뜁니다"
-                        echo "  원인: ${e.message}"
-                        echo "  ── 확인 사항 ──────────────────────────────────────"
-                        echo "  Jenkins 관리 → Credentials → Global → Add Credentials"
-                        echo "    Kind    : Username with password"
-                        echo "    ID      : db-credentials"
-                        echo "    Username: DB 계정 (예: root)"
-                        echo "    Password: DB 비밀번호"
-                        echo "  ───────────────────────────────────────────────────"
-                        unstable("DB Credentials 'db-credentials' 미등록")
-                    }
-                }
-            }
-        }
-
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [server-jar] 원격 서버에 JAR만 SSH 전송 후 자동 실행
+        // [server-jar] 원격 서버에 JAR만 SSH 전송 후 앱 재시작
         //   사전 조건 : Jenkins Credentials에 'deploy-server-ssh' 등록
         //             Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 설정
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -446,23 +276,32 @@ PS1EOF
                                 APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
                                 scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                                     "\$APP_JAR" \\
-                                    ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app.jar
+                                    ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app-new.jar
 
                                 ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                                     ${REMOTE_USER}@${REMOTE_HOST} "
-                                        pkill -f 'java -jar' || true
-                                        sleep 2
-                                        nohup java -jar ${REMOTE_PATH}/app.jar \\
-                                          --spring.profiles.active=prod \\
-                                          > ${REMOTE_PATH}/app.log 2>&1 &
-                                        sleep 3
-                                        ps aux | grep 'java -jar'
-                                        echo '✅ 원격 서버 배포 완료'
+                                        # PID 파일로 정확히 이 앱만 종료 (pkill 미사용)
+                                        if [ -f ${REMOTE_PATH}/app.pid ]; then
+                                            APP_PID=\\\$(cat ${REMOTE_PATH}/app.pid)
+                                            kill -TERM \\\$APP_PID 2>/dev/null || true
+                                            sleep 5
+                                            kill -9 \\\$APP_PID 2>/dev/null || true
+                                            rm -f ${REMOTE_PATH}/app.pid
+                                        fi
+
+                                        mv ${REMOTE_PATH}/app-new.jar ${REMOTE_PATH}/app.jar
+
+                                        nohup java -Xms256m -Xmx1g \\
+                                            -jar ${REMOTE_PATH}/app.jar \\
+                                            --spring.profiles.active=prod \\
+                                            > ${REMOTE_PATH}/app.log 2>&1 &
+                                        echo \\\$! > ${REMOTE_PATH}/app.pid
+                                        echo '✅ 배포 완료 (PID: '\\\$(cat ${REMOTE_PATH}/app.pid)')'
                                     "
                             """
                         }
                     } catch (Exception e) {
-                        echo "⚠ SSH 배포 사전 조건 미충족 - 배포를 건너뜁니다"
+                        echo "⚠ server-jar 배포 실패"
                         echo "  원인: ${e.message}"
                         echo "  ── 확인 사항 ──────────────────────────────────────"
                         echo "  Jenkins 관리 → Credentials → Global → Add Credentials"
@@ -470,16 +309,16 @@ PS1EOF
                         echo "    ID      : deploy-server-ssh"
                         echo "  Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 값 설정"
                         echo "  ───────────────────────────────────────────────────"
-                        unstable("SSH credentials 'deploy-server-ssh' 미등록 또는 서버 연결 실패")
+                        unstable("deploy-server-ssh 미등록 또는 서버 연결 실패")
                     }
                 }
             }
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [server-jar-zip] 온프레미스 ZIP 패키지를 원격 서버에 전송 후 자동 설치/업데이트
-        //   최초 설치 : config/application.yml 복사 후 수동 DB 설정 안내
-        //   업데이트  : app.jar + bin/ + mapper/ 만 교체, config/는 기존 설정 보존
+        // [server-jar-zip] 온프레미스 ZIP 패키지를 원격 서버에 SSH 전송 후 설치/업데이트
+        //   최초 설치 : config/application.yml 복사 후 수동 DB 설정 안내 (앱 미시작)
+        //   재배포    : app.jar + bin/ + mapper/ 만 교체, config/ 기존 설정 보존
         //   사전 조건 : Jenkins Credentials에 'deploy-server-ssh' 등록
         //             Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 설정
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -509,67 +348,60 @@ PS1EOF
                                     ${REMOTE_USER}@${REMOTE_HOST} \\
                                     "mkdir -p ${REMOTE_PATH}/releases"
 
-                                echo "── ZIP 전송 중..."
                                 scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                                     "\$ZIP_FILE" \\
                                     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/releases/
 
                                 # ── 3. 원격 서버에서 설치/업데이트 ─────────────────────
                                 ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
-                                    ${REMOTE_USER}@${REMOTE_HOST} << 'REMOTE_SCRIPT'
+                                    ${REMOTE_USER}@${REMOTE_HOST} "
                                         set -e
-                                        APP_DIR="${REMOTE_PATH}/current"
-                                        ZIP_PATH="${REMOTE_PATH}/releases/${ZIP_NAME}"
+                                        APP_DIR='${REMOTE_PATH}/current'
+                                        ZIP_PATH='${REMOTE_PATH}/releases/${ZIP_NAME}'
 
                                         # 기존 앱 종료
-                                        if [ -f "\$APP_DIR/app.pid" ]; then
-                                            APP_PID=\$(cat "\$APP_DIR/app.pid")
-                                            echo "[INFO] 기존 앱 종료 중 (PID: \$APP_PID)..."
-                                            kill -TERM "\$APP_PID" 2>/dev/null || true
+                                        if [ -f \\\"\\\$APP_DIR/app.pid\\\" ]; then
+                                            APP_PID=\\\$(cat \\\"\\\$APP_DIR/app.pid\\\")
+                                            kill -TERM \\\$APP_PID 2>/dev/null || true
                                             sleep 5
-                                            kill -9 "\$APP_PID" 2>/dev/null || true
-                                            rm -f "\$APP_DIR/app.pid"
+                                            kill -9 \\\$APP_PID 2>/dev/null || true
+                                            rm -f \\\"\\\$APP_DIR/app.pid\\\"
                                         fi
 
                                         # ZIP 압축 해제 (임시 디렉터리)
-                                        echo "[INFO] 새 패키지 압축 해제..."
-                                        TEMP_DIR=\$(mktemp -d)
-                                        unzip -q "\$ZIP_PATH" -d "\$TEMP_DIR"
-                                        SRC_DIR="\$TEMP_DIR/\$(ls "\$TEMP_DIR")"
+                                        TEMP_DIR=\\\$(mktemp -d)
+                                        unzip -q \\\"\\\$ZIP_PATH\\\" -d \\\"\\\$TEMP_DIR\\\"
+                                        SRC_DIR=\\\"\\\$TEMP_DIR/\\\$(ls \\\"\\\$TEMP_DIR\\\")/\\\"
 
-                                        # app.jar, bin/, mapper/ 업데이트
-                                        mkdir -p "\$APP_DIR"
-                                        cp "\$SRC_DIR/app.jar" "\$APP_DIR/app.jar"
-                                        cp -r "\$SRC_DIR/bin"  "\$APP_DIR/"
-                                        chmod +x "\$APP_DIR/bin/"*.sh
-                                        [ -d "\$SRC_DIR/mapper" ] && cp -r "\$SRC_DIR/mapper" "\$APP_DIR/"
+                                        mkdir -p \\\"\\\$APP_DIR\\\"
 
-                                        # config/는 최초 설치 시에만 복사 (이후 기존 설정 보존)
-                                        if [ ! -f "\$APP_DIR/config/application.yml" ]; then
-                                            echo "[INFO] 최초 설치: config/ 복사"
-                                            cp -r "\$SRC_DIR/config" "\$APP_DIR/"
-                                            rm -rf "\$TEMP_DIR"
-                                            echo ""
-                                            echo "========================================"
-                                            echo "  ⚠ 최초 설치 완료 — DB 설정 필요"
-                                            echo "  1. 설정 편집: nano \$APP_DIR/config/application.yml"
-                                            echo "  2. 앱 시작  : \$APP_DIR/bin/start.sh"
-                                            echo "========================================"
+                                        # app.jar + bin/ + mapper/ 업데이트
+                                        cp \\\"\\\${SRC_DIR}app.jar\\\" \\\"\\\$APP_DIR/app.jar\\\"
+                                        cp -r \\\"\\\${SRC_DIR}bin\\\"  \\\"\\\$APP_DIR/\\\"
+                                        chmod +x \\\"\\\$APP_DIR/bin/\\\"*.sh
+                                        [ -d \\\"\\\${SRC_DIR}mapper\\\" ] && cp -r \\\"\\\${SRC_DIR}mapper\\\" \\\"\\\$APP_DIR/\\\"
+
+                                        # config/는 최초 설치 시에만 복사
+                                        if [ ! -f \\\"\\\$APP_DIR/config/application.yml\\\" ]; then
+                                            cp -r \\\"\\\${SRC_DIR}config\\\" \\\"\\\$APP_DIR/\\\"
+                                            rm -rf \\\"\\\$TEMP_DIR\\\"
+                                            echo ''
+                                            echo '========================================'
+                                            echo '  ⚠ 최초 설치 완료 — DB 설정 필요'
+                                            echo '  1. 설정 편집: nano \\\$APP_DIR/config/application.yml'
+                                            echo '  2. 앱 시작  : \\\$APP_DIR/bin/start.sh'
+                                            echo '========================================'
                                             exit 0
                                         fi
 
-                                        rm -rf "\$TEMP_DIR"
+                                        rm -rf \\\"\\\$TEMP_DIR\\\"
 
                                         # 앱 시작
-                                        echo "[INFO] 앱 시작 중..."
-                                        "\$APP_DIR/bin/start.sh"
-                                        echo "✅ 업데이트 배포 완료"
-REMOTE_SCRIPT
+                                        \\\"\\\$APP_DIR/bin/start.sh\\\"
+                                        echo '✅ 업데이트 완료'
+                                    "
 
-                                echo ""
-                                echo "✅ server-jar-zip 배포 완료"
-                                echo "   서버 : ${REMOTE_HOST}"
-                                echo "   경로 : ${REMOTE_PATH}/current"
+                                echo "✅ server-jar-zip 배포 완료 → ${REMOTE_HOST}:${REMOTE_PATH}/current"
                             """
                         }
                     } catch (Exception e) {
@@ -582,6 +414,156 @@ REMOTE_SCRIPT
                         echo "  Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 값 설정"
                         echo "  ───────────────────────────────────────────────────"
                         unstable("server-jar-zip 배포 실패: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // [server-blue-green] 무중단 블루-그린 배포
+        //   Blue(8081) ↔ Green(8082) 두 인스턴스를 번갈아 배포
+        //   Nginx upstream을 순간 전환해 서비스 중단 없이 버전 교체
+        //   헬스체크 실패 시 신규 인스턴스를 자동 롤백 (구 버전 유지)
+        //
+        //   서버 사전 설정:
+        //     1. Nginx 설치 + /etc/nginx/sites-enabled/spring-app 파일 생성:
+        //          upstream spring_app { server 127.0.0.1:8081; }
+        //          server { listen 80; location / { proxy_pass http://spring_app; } }
+        //     2. sudo 권한 (NOPASSWD):
+        //          echo "ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/nginx" | sudo tee /etc/sudoers.d/nginx
+        //     3. Java 17+ 설치
+        //   사전 조건 : deploy-server-ssh 등록 + REMOTE_HOST/USER/PATH 설정
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        stage('Deploy: server-blue-green') {
+            when {
+                expression { params.DEPLOY_METHOD == 'server-blue-green' }
+            }
+            steps {
+                script {
+                    try {
+                        withCredentials([sshUserPrivateKey(
+                            credentialsId: 'deploy-server-ssh',
+                            keyFileVariable:  'SSH_KEY',
+                            usernameVariable: 'SSH_USER'
+                        )]) {
+                            sh """
+                                # JAR 전송
+                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${REMOTE_PATH}"
+                                APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
+                                scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    "\$APP_JAR" \\
+                                    ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app-new.jar
+
+                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    ${REMOTE_USER}@${REMOTE_HOST} "
+                                        set -e
+                                        APP_DIR='${REMOTE_PATH}'
+                                        BLUE_PORT=${BLUE_PORT}
+                                        GREEN_PORT=${GREEN_PORT}
+                                        NGINX_CONF='/etc/nginx/sites-enabled/spring-app'
+
+                                        # ── 현재 활성 색상 판단 ─────────────────────────
+                                        ACTIVE='none'
+                                        if [ -f \\\"\\\$APP_DIR/app-blue.pid\\\" ]; then
+                                            B_PID=\\\$(cat \\\"\\\$APP_DIR/app-blue.pid\\\")
+                                            kill -0 \\\$B_PID 2>/dev/null && ACTIVE='blue'
+                                        fi
+                                        if [ '\\\$ACTIVE' = 'none' ] && [ -f \\\"\\\$APP_DIR/app-green.pid\\\" ]; then
+                                            G_PID=\\\$(cat \\\"\\\$APP_DIR/app-green.pid\\\")
+                                            kill -0 \\\$G_PID 2>/dev/null && ACTIVE='green'
+                                        fi
+
+                                        if [ '\\\$ACTIVE' = 'blue' ]; then
+                                            INACTIVE='green'; NEW_PORT=\\\$GREEN_PORT
+                                            OLD_PID_FILE=\\\"\\\$APP_DIR/app-blue.pid\\\"
+                                            NEW_PID_FILE=\\\"\\\$APP_DIR/app-green.pid\\\"
+                                        else
+                                            INACTIVE='blue';  NEW_PORT=\\\$BLUE_PORT
+                                            OLD_PID_FILE=\\\"\\\$APP_DIR/app-green.pid\\\"
+                                            NEW_PID_FILE=\\\"\\\$APP_DIR/app-blue.pid\\\"
+                                        fi
+
+                                        echo \\\"[INFO] 현재 활성: \\\$ACTIVE → 신규 배포 대상: \\\$INACTIVE (포트: \\\$NEW_PORT)\\\"
+
+                                        # ── inactive 인스턴스 정리 ──────────────────────
+                                        if [ -f \\\"\\\$NEW_PID_FILE\\\" ]; then
+                                            OLD_INACTIVE_PID=\\\$(cat \\\"\\\$NEW_PID_FILE\\\")
+                                            kill -9 \\\$OLD_INACTIVE_PID 2>/dev/null || true
+                                            rm -f \\\"\\\$NEW_PID_FILE\\\"
+                                        fi
+
+                                        # ── 신규 인스턴스 시작 ──────────────────────────
+                                        cp \\\"\\\$APP_DIR/app-new.jar\\\" \\\"\\\$APP_DIR/app.jar\\\"
+                                        nohup java -Xms256m -Xmx1g \\\\
+                                            -jar \\\"\\\$APP_DIR/app.jar\\\" \\\\
+                                            --server.port=\\\$NEW_PORT \\\\
+                                            --spring.profiles.active=prod \\\\
+                                            > \\\"\\\$APP_DIR/app-\\\$INACTIVE.log\\\" 2>&1 &
+                                        echo \\\$! > \\\"\\\$NEW_PID_FILE\\\"
+                                        echo \\\"[INFO] 신규 인스턴스 시작 (PID: \\\$(cat \\\$NEW_PID_FILE), 포트: \\\$NEW_PORT)\\\"
+
+                                        # ── 헬스체크 (최대 60초) ────────────────────────
+                                        echo '[INFO] 헬스체크 대기 중... (최대 60초)'
+                                        HEALTH_OK=false
+                                        for i in \\\$(seq 1 12); do
+                                            sleep 5
+                                            HTTP_STATUS=\\\$(curl -s -o /dev/null -w '%{http_code}' \\\\
+                                                \\\"http://localhost:\\\$NEW_PORT/actuator/health\\\" || echo '000')
+                                            echo \\\"  [\\\$i/12] HTTP \\\$HTTP_STATUS\\\"
+                                            if [ \\\"\\\$HTTP_STATUS\\\" = '200' ]; then
+                                                HEALTH_OK=true
+                                                break
+                                            fi
+                                        done
+
+                                        # ── 헬스체크 실패 → 롤백 ────────────────────────
+                                        if [ \\\"\\\$HEALTH_OK\\\" = 'false' ]; then
+                                            echo '[ERROR] 헬스체크 실패 — 롤백: 구 버전 유지'
+                                            kill -9 \\\$(cat \\\"\\\$NEW_PID_FILE\\\") 2>/dev/null || true
+                                            rm -f \\\"\\\$NEW_PID_FILE\\\"
+                                            exit 1
+                                        fi
+
+                                        # ── Nginx upstream 전환 ──────────────────────────
+                                        if [ -f \\\"\\\$NGINX_CONF\\\" ]; then
+                                            sudo sed -i \\\"s|server 127.0.0.1:[0-9]*;|server 127.0.0.1:\\\$NEW_PORT;|\\\" \\\"\\\$NGINX_CONF\\\"
+                                            sudo nginx -s reload
+                                            echo \\\"[OK] Nginx → 포트 \\\$NEW_PORT 전환 완료\\\"
+                                        else
+                                            echo '[WARN] Nginx 설정 파일 없음 — 트래픽 전환 생략'
+                                            echo \\\"       \\\$NGINX_CONF 파일을 확인하세요\\\"
+                                        fi
+
+                                        # ── 구 인스턴스 Graceful Shutdown ───────────────
+                                        if [ -f \\\"\\\$OLD_PID_FILE\\\" ]; then
+                                            OLD_PID=\\\$(cat \\\"\\\$OLD_PID_FILE\\\")
+                                            echo \\\"[INFO] 구 인스턴스 종료 (PID: \\\$OLD_PID)...\\\"
+                                            kill -TERM \\\$OLD_PID 2>/dev/null || true
+                                            sleep 10
+                                            kill -9 \\\$OLD_PID 2>/dev/null || true
+                                            rm -f \\\"\\\$OLD_PID_FILE\\\"
+                                        fi
+
+                                        echo ''
+                                        echo '✅ 블루-그린 배포 완료'
+                                        echo \\\"   이전: \\\$ACTIVE → 현재: \\\$INACTIVE (포트: \\\$NEW_PORT)\\\"
+                                    "
+                            """
+                        }
+                    } catch (Exception e) {
+                        echo "⚠ server-blue-green 배포 실패"
+                        echo "  원인: ${e.message}"
+                        echo "  ── 서버 사전 설정 확인 ────────────────────────────"
+                        echo "  1. Nginx 설치 및 설정 파일 확인:"
+                        echo "       /etc/nginx/sites-enabled/spring-app"
+                        echo "       내용: upstream spring_app { server 127.0.0.1:8081; }"
+                        echo "  2. sudo 권한 (NOPASSWD) 설정:"
+                        echo "       echo 'ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/nginx'"
+                        echo "       | sudo tee /etc/sudoers.d/nginx"
+                        echo "  3. Jenkins Credentials 'deploy-server-ssh' 등록 확인"
+                        echo "  ───────────────────────────────────────────────────"
+                        unstable("server-blue-green 배포 실패: ${e.message}")
                     }
                 }
             }
@@ -608,7 +590,6 @@ REMOTE_SCRIPT
                             usernameVariable: 'SSH_USER'
                         )]) {
                             sh """
-                                # docker-compose.prod.yml을 원격 서버로 전송
                                 ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                                     ${REMOTE_USER}@${REMOTE_HOST} \\
                                     "mkdir -p ${REMOTE_PATH}"
@@ -617,7 +598,6 @@ REMOTE_SCRIPT
                                     docker-compose.prod.yml \\
                                     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/docker-compose.yml
 
-                                # 원격 서버에서 이미지 Pull 후 컨테이너 재시작
                                 ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
                                     ${REMOTE_USER}@${REMOTE_HOST} "
                                         cd ${REMOTE_PATH}
@@ -667,16 +647,13 @@ REMOTE_SCRIPT
                             sh """
                                 export KUBECONFIG=\$KUBECONFIG_FILE
 
-                                # deployment.yaml의 IMAGE_PLACEHOLDER를 실제 이미지 태그로 치환
                                 sed -i 's|IMAGE_PLACEHOLDER|${DOCKER_IMAGE}:${DOCKER_TAG}|g' deploy/k8s/deployment.yaml
 
-                                # Secret / ConfigMap / Deployment / Service 순서로 적용
                                 kubectl apply -f deploy/k8s/secret.yaml     --namespace=${K8S_NAMESPACE}
                                 kubectl apply -f deploy/k8s/configmap.yaml  --namespace=${K8S_NAMESPACE}
                                 kubectl apply -f deploy/k8s/deployment.yaml --namespace=${K8S_NAMESPACE}
                                 kubectl apply -f deploy/k8s/service.yaml    --namespace=${K8S_NAMESPACE}
 
-                                # 롤링 배포 완료 대기 (최대 3분)
                                 kubectl rollout status deployment/${APP_NAME} \\
                                     --namespace=${K8S_NAMESPACE} \\
                                     --timeout=180s
@@ -694,7 +671,7 @@ REMOTE_SCRIPT
                         echo "    Kind    : Secret file"
                         echo "    ID      : kubeconfig"
                         echo "    File    : ~/.kube/config 파일 업로드"
-                        echo "  deploy/k8s/secret.yaml DB 접속 정보 실제 값으로 설정 확인"
+                        echo "  deploy/k8s/secret.yaml DB 접속 정보 설정 확인"
                         echo "  ───────────────────────────────────────────────────"
                         unstable("server-k8s 배포 실패: ${e.message}")
                     }
@@ -706,7 +683,7 @@ REMOTE_SCRIPT
         // [package-zip] 고객사 설치형 JAR 릴리즈 패키지 생성
         //   내용: app.jar + config/application.yml + mapper/*.xml + bin 스크립트
         //   결과: {앱명}-{버전}-release.zip → Jenkins Artifacts에서 다운로드
-        //   사전 조건: 없음 (빌드 성공 후 바로 사용 가능)
+        //   사전 조건: 없음
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: package-zip') {
             when {
@@ -714,9 +691,6 @@ REMOTE_SCRIPT
             }
             steps {
                 sh """
-                    # -Ponpremise 프로파일로 JAR + ZIP 동시 생성
-                    # pom.xml의 onpremise 프로파일이 maven-assembly-plugin을 활성화해
-                    # src/assembly/onpremise.xml 정의대로 ZIP을 자동 구성함
                     mvn package -Ponpremise -q
 
                     ZIP_FILE=\$(ls target/*-release.zip | head -1)
@@ -731,11 +705,10 @@ REMOTE_SCRIPT
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [package-docker] 고객사 설치형 Docker 릴리즈 패키지 생성
+        // [package-docker] 고객사 설치형 Docker 릴리즈 패키지 생성 (폐쇄망 지원)
         //   내용: Docker 이미지 tar.gz + docker-compose.yml + 설치 스크립트
         //   결과: {앱명}-{버전}-docker-release.zip → Jenkins Artifacts에서 다운로드
-        //   특징: 인터넷이 없는 폐쇄망 고객사에서도 Docker만 있으면 즉시 설치 가능
-        //   사전 조건: Docker Build 스테이지 성공 후 실행 (자동으로 포함됨)
+        //   사전 조건: Docker Engine 실행 중 (이미지 빌드용)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: package-docker') {
             when {
@@ -747,20 +720,16 @@ REMOTE_SCRIPT
                     PKG_NAME="${APP_NAME}-\${APP_VER}-docker"
                     PKG_DIR="dist/\${PKG_NAME}"
 
-                    echo "── 패키지 디렉터리 생성: \$PKG_DIR"
                     rm -rf dist/
                     mkdir -p "\$PKG_DIR"
 
-                    # ── Docker 이미지를 tar.gz로 저장 ────────────────────────
-                    echo "── Docker 이미지 저장 중... (수 분 소요될 수 있음)"
+                    echo "── Docker 이미지 저장 중... (수 분 소요)"
                     docker save ${DOCKER_IMAGE}:${DOCKER_TAG} | gzip > "\$PKG_DIR/image.tar.gz"
-                    echo "   이미지 크기: \$(du -sh "\$PKG_DIR/image.tar.gz" | cut -f1)"
+                    echo "   크기: \$(du -sh "\$PKG_DIR/image.tar.gz" | cut -f1)"
 
-                    # ── docker-compose 파일 + 설치 가이드 복사 ────────────────
                     cp deploy/onpremise/docker-compose.yml "\$PKG_DIR/"
                     cp deploy/onpremise/INSTALL.md "\$PKG_DIR/"
 
-                    # ── Linux 원클릭 설치 스크립트 생성 ─────────────────────
                     cat > "\$PKG_DIR/load-and-run.sh" << 'SHEOF'
 #!/bin/bash
 set -e
@@ -773,7 +742,7 @@ docker load < image.tar.gz
 echo ""
 echo "[2/3] docker-compose.yml 설정 확인..."
 echo "      ★ DB 접속 정보를 수정했는지 확인하세요!"
-echo "      수정: vi docker-compose.yml 또는 nano docker-compose.yml"
+echo "      수정: vi docker-compose.yml"
 echo ""
 read -p "      설정이 완료되었으면 Enter를 누르세요..." _
 echo ""
@@ -787,9 +756,7 @@ echo "=========================================="
 SHEOF
                     chmod +x "\$PKG_DIR/load-and-run.sh"
 
-                    # ── ZIP 패키지 생성 ───────────────────────────────────────
                     ZIP_FILE="\${PKG_NAME}-release.zip"
-                    echo "── ZIP 생성: \$ZIP_FILE"
                     (cd dist && zip -r "../\$ZIP_FILE" "\${PKG_NAME}/")
 
                     echo ""
@@ -797,8 +764,6 @@ SHEOF
                     echo "   파일명 : \$ZIP_FILE"
                     echo "   크기   : \$(du -sh "\$ZIP_FILE" | cut -f1)"
                     echo "   Jenkins Artifacts 탭에서 다운로드 가능"
-                    echo ""
-                    ls -lh "\$PKG_DIR/"
                 """
                 archiveArtifacts artifacts: '*-docker-release.zip', fingerprint: true
             }

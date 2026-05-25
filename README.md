@@ -1,7 +1,7 @@
 # SpringStarterMavenProject
 
 Spring Boot 3.4.2 기반의 DDD 레이어드 아키텍처 스타터 프로젝트.  
-로컬 개발부터 SaaS(Docker/K8s), B2B 고객사 설치형까지 총 **8가지 배포 방식**을 Jenkins Pipeline으로 지원한다.
+로컬 개발부터 SaaS(Docker/K8s), B2B 고객사 설치형까지 총 **7가지 배포 방식**을 Jenkins Pipeline으로 지원한다.
 
 ---
 
@@ -342,11 +342,9 @@ mvnw.cmd spotbugs:check
 
 | 그룹 | DEPLOY_METHOD | 상황 |
 |---|---|---|
-| **내 PC** | `local-jar` | 빌드된 JAR를 내 PC 폴더에만 저장 (앱 실행 X) |
-| **내 PC** | `local-jar-docker` | JAR 저장 + Docker 컨테이너로 즉시 실행 |
-| **내 PC** | `local-docker` | Docker 컨테이너로만 실행 (JAR 저장 X) |
-| **원격 서버** | `server-jar` | 원격 서버에 JAR만 SSH 배포 |
+| **원격 서버** | `server-jar` | 원격 서버에 JAR만 SSH 배포 (가장 단순) |
 | **원격 서버** | `server-jar-zip` | 원격 서버에 전체 패키지(JAR+설정+스크립트) SSH 배포 ★ |
+| **원격 서버** | `server-blue-green` | 무중단 Blue/Green 배포 — Nginx 트래픽 순간 전환 ★ |
 | **원격 서버** | `server-docker` | Docker Hub → 원격 서버 docker-compose 배포 ★ |
 | **원격 서버** | `server-k8s` | Docker Hub → Kubernetes 클러스터 롤링 배포 ★ |
 | **고객사 납품** | `package-zip` | JAR + 설정 + 스크립트를 ZIP으로 패키징 |
@@ -354,63 +352,11 @@ mvnw.cmd spotbugs:check
 
 ---
 
-### `local-windows-folder` — JAR 파일만 로컬 저장
-
-빌드된 JAR를 이 PC의 지정 폴더에 복사한다. 앱 실행 없이 파일만 저장.
-
-**수정할 설정 없음** — 사전 조건만 확인.
-
-**사전 조건**
-```
-Jenkins 컨테이너 실행 시 볼륨 마운트 필요:
-  -v "C:\SJSJSS\Project\01.File\StarterMavenProject:/var/deploy"
-```
-
-**결과물**: `C:\SJSJSS\Project\01.File\StarterMavenProject\app.jar`
-
----
-
-### `local-windows-docker` — 로컬 JAR 저장 + Docker 컨테이너 실행
-
-JAR를 로컬 폴더에 저장하고 Docker 이미지로도 빌드해 컨테이너를 즉시 실행한다.
-
-**Jenkinsfile 수정 불필요** — Jenkins Credentials만 등록.
-
-**사전 조건**
-```
-① Docker Desktop 실행 중
-② Jenkins 볼륨 마운트 설정 (위와 동일)
-③ Jenkins Credentials 등록:
-   Jenkins 관리 → Credentials → Global → Add Credentials
-     Kind    : Username with password
-     ID      : db-credentials
-     Username: DB 계정명
-     Password: DB 비밀번호
-```
-
-**결과물**: `http://localhost:8081` (컨테이너 실행)
-
----
-
-### `local-docker` — Docker 컨테이너로 로컬 실행
-
-이미지 빌드 후 현재 PC에서 컨테이너를 즉시 실행한다.
-
-**사전 조건**
-```
-① Docker Desktop 실행 중
-② Jenkins Credentials: db-credentials (위와 동일)
-```
-
-**결과물**: `http://localhost:8081`
-
----
-
-### `remote-ssh` — 원격 서버에 JAR 배포
+### `server-jar` — 원격 서버에 JAR 배포
 
 빌드된 JAR를 원격 Linux 서버로 전송해 자동 실행한다.
 
-**Jenkinsfile 상단 수정 필요**
+**Jenkinsfile 수정 필요**
 
 ```groovy
 // Jenkinsfile — environment 블록
@@ -428,11 +374,90 @@ Jenkins 관리 → Credentials → Global → Add Credentials
   Key     : 서버 접속용 PEM 키 내용 붙여넣기
 ```
 
-**결과물**: 원격 서버 `서버IP:8081`에서 앱 구동
+**결과물**: 원격 서버 `서버IP:8080`에서 앱 구동
 
 ---
 
-### `dockerhub-compose` ★ — Docker Hub + 원격 서버 docker-compose
+### `server-jar-zip` ★ — 온프레미스 패키지 원격 서버 자동 배포
+
+온프레미스 ZIP 패키지(JAR + 설정 + 스크립트)를 SSH로 원격 서버에 전송 후 자동 설치/업데이트.  
+**B2B 고객사 서버를 CI/CD로 직접 자동 배포할 때 사용.**
+
+**특징**
+- 최초 설치: `config/application.yml` 복사 후 수동 DB 설정 안내 (앱 미시작)
+- 재배포: `app.jar` + `bin/` + `mapper/`만 교체, **기존 DB 설정 보존**
+
+**Jenkinsfile 수정 필요**
+
+```groovy
+REMOTE_HOST = '실제_서버_IP'
+REMOTE_USER = 'ubuntu'
+REMOTE_PATH = '/home/ubuntu/app'    // 설치 경로 (current/ 하위에 배치됨)
+```
+
+**Jenkins Credentials 등록**
+```
+Kind    : SSH Username with private key
+ID      : deploy-server-ssh
+```
+
+**결과물**: `REMOTE_PATH/current/`에 설치 완료, 원격 서버에서 앱 구동
+
+---
+
+### `server-blue-green` ★ — 무중단 Blue/Green 배포
+
+Blue(8081)와 Green(8082) 두 인스턴스를 번갈아 배포하고 Nginx가 트래픽을 순간 전환한다.  
+**서비스 중단 0초. 헬스체크 실패 시 자동 롤백.**
+
+**동작 원리**
+```
+① 현재 활성 인스턴스 확인 (Blue 또는 Green PID 파일로 판단)
+② 비활성 인스턴스에 신규 JAR 배포 (반대 포트에서 기동)
+③ 헬스체크 60초 대기 (/actuator/health HTTP 200 확인)
+④ (성공) Nginx upstream 순간 전환 → 구 인스턴스 Graceful Shutdown
+   (실패) 신규 인스턴스 즉시 제거 → 구 버전 자동 유지 (롤백)
+```
+
+**서버 사전 설정**
+
+```bash
+# 1. Nginx 설치 및 설정 파일 생성
+sudo apt install -y nginx
+sudo tee /etc/nginx/sites-enabled/spring-app <<'EOF'
+upstream spring_app { server 127.0.0.1:8081; }
+server {
+    listen 80;
+    location / { proxy_pass http://spring_app; }
+}
+EOF
+sudo nginx -t && sudo nginx -s reload
+
+# 2. nginx reload를 위한 sudo 권한 부여 (비밀번호 없이)
+echo "ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/nginx" | sudo tee /etc/sudoers.d/nginx
+```
+
+**Jenkinsfile 수정 필요**
+
+```groovy
+REMOTE_HOST = '실제_서버_IP'
+REMOTE_USER = 'ubuntu'
+REMOTE_PATH = '/home/ubuntu/app'
+BLUE_PORT   = '8081'    // 기본값 유지 가능
+GREEN_PORT  = '8082'    // 기본값 유지 가능
+```
+
+**Jenkins Credentials 등록**
+```
+Kind    : SSH Username with private key
+ID      : deploy-server-ssh
+```
+
+**결과물**: 서비스 중단 0초, Nginx를 통해 신규 버전으로 교체 완료
+
+---
+
+### `server-docker` ★ — Docker Hub + 원격 서버 docker-compose
 
 이미지를 Docker Hub에 Push하고 원격 서버에서 `docker-compose`로 실행한다.  
 **중소규모 SaaS 서비스의 현업 표준.**
@@ -440,7 +465,6 @@ Jenkins 관리 → Credentials → Global → Add Credentials
 **Jenkinsfile 수정 필요**
 
 ```groovy
-// Jenkinsfile — environment 블록
 DOCKER_IMAGE = "실제_도커허브_ID/spring-starter-maven"  // ← 변경
 REMOTE_HOST  = '실제_서버_IP'                           // ← 변경
 REMOTE_USER  = 'ubuntu'                                 // ← 변경
@@ -458,12 +482,10 @@ REMOTE_PATH  = '/home/ubuntu/app'                       // ← 변경
 ② deploy-server-ssh
    Kind    : SSH Username with private key
    ID      : deploy-server-ssh
-   (remote-ssh와 동일)
 ```
 
 **원격 서버 사전 조건**
 ```bash
-# 원격 서버에 Docker + docker-compose 설치 필요
 docker --version        # 20.10+
 docker-compose --version  # 또는 docker compose version
 ```
@@ -472,7 +494,7 @@ docker-compose --version  # 또는 docker compose version
 
 ---
 
-### `kubernetes` ★ — Kubernetes 클러스터 롤링 배포
+### `server-k8s` ★ — Kubernetes 클러스터 롤링 배포
 
 이미지를 빌드해 레지스트리에 Push하고 K8s 클러스터에 자동 배포한다.  
 **대규모/클라우드 SaaS 서비스의 현업 표준.**
@@ -519,7 +541,7 @@ containers:
 
 ---
 
-### `onpremise-zip` — B2B 고객사 설치형 JAR 패키지
+### `package-zip` — B2B 고객사 설치형 JAR 패키지
 
 JAR + 설정 파일 + SQL 매퍼 + 시작/종료 스크립트를 ZIP으로 패키징한다.  
 **JDK 17만 있으면 설치 가능. 인터넷 불필요.**
@@ -561,7 +583,7 @@ bin/install.sh    # DB 정보 입력 → 설정 자동화 → 앱 시작
 
 ---
 
-### `onpremise-docker` — B2B 고객사 설치형 Docker 패키지
+### `package-docker` — B2B 고객사 설치형 Docker 패키지
 
 Docker 이미지를 `tar.gz`로 저장하고 `docker-compose`와 함께 ZIP으로 패키징한다.  
 **인터넷 없는 폐쇄망 환경에서도 Docker만 있으면 설치 가능.**
