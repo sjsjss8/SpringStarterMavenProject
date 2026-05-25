@@ -51,11 +51,13 @@ SpringbootProject/
 │   ├── main/
 │   │   ├── java/com/example/demo/
 │   │   │   ├── ProjectApplication.java          # 앱 시작점
-│   │   │   ├── interfaces/                      # ① 표현 계층
-│   │   │   │   ├── api/v1/{domain}/             #   ★ REST API 컨트롤러 (메인 인터페이스)
-│   │   │   │   ├── api/v2/                      #   향후 v2 API (scaffold)
-│   │   │   │   ├── sample/web/{domain}/         #   Thymeleaf SSR 샘플 (학습용 격리)
-│   │   │   │   └── spa/SpaWebMvcConfig.java     #   ★ Vue SPA 정적 리소스 + History fallback
+│   │   │   ├── interfaces/                      # ① 표현 계층 — v1/v2 로 UI 방식 분리
+│   │   │   │   ├── api/v1/                      #   Thymeleaf 식 (서버사이드 HTML 렌더링)
+│   │   │   │   │   ├── HomeController.java      #     /, /sample
+│   │   │   │   │   └── member/MemberWebController.java   #  /sample/members
+│   │   │   │   └── api/v2/                      #   SPA 식 (Vue 3 + REST API)
+│   │   │   │       ├── SpaWebMvcConfig.java     #     /spa/** 정적 리소스 + history fallback
+│   │   │   │       └── member/MemberApiController.java   #  /api/v2/members
 │   │   │   ├── application/                     # ② 응용 계층
 │   │   │   │   └── {domain}/
 │   │   │   │       ├── dto/request/             #   요청 DTO
@@ -174,15 +176,27 @@ throw new BusinessException(ErrorCode.XXX); // GlobalExceptionHandler가 처리
 { "success": false, "error": { "code": "NOT_FOUND", "message": "..." } }
 ```
 
-### 컨트롤러 구조 — REST API + Vue SPA + Thymeleaf 샘플 3-track
+### 컨트롤러 구조 — v1 (Thymeleaf) + v2 (SPA) 두 UI 방식
 
-이 프로젝트는 **3가지 UI 진입점**을 명확히 분리해서 한 JAR 안에 통합한다.
+이 프로젝트는 **두 가지 UI 방식**을 `interfaces/api/` 하위 버전으로 분리해서 한 JAR 안에 담는다.  
+REST API 는 단일 진실 공급원으로 `v2` 에 두고, 두 UI 방식이 모두 이를 호출한다.
 
-| URL 경로 | 위치 | 역할 |
-|---|---|---|
-| `/api/v1/**` | `interfaces/api/v1/{domain}/` | **메인** — JSON REST API (`ApiResponse<T>`) |
-| `/spa/**` | `src/main/frontend/` (Vue 소스)<br>`interfaces/spa/SpaWebMvcConfig.java` (라우팅) | **★ Vue 3 SPA** — Vite 빌드 → 정적 리소스로 통합 |
-| `/`, `/sample/**` | `interfaces/sample/web/` + `templates/` | Thymeleaf SSR 데모 (학습용) |
+| 패키지 | UI 방식 | URL | 역할 |
+|---|---|---|---|
+| `interfaces/api/v1/` | **Thymeleaf 식** (서버사이드 HTML 렌더링) | `/`, `/sample`, `/sample/members` | 페이지 껍데기는 서버가 렌더링, JS 가 v2 REST API 호출 |
+| `interfaces/api/v2/` | **SPA 식** (Vue 3) | `/api/v2/**` (REST), `/spa/**` (정적) | REST API + Vue SPA 진입점 |
+
+### 데이터 흐름 비교
+
+```
+[v1 Thymeleaf]    Browser ──HTTP──► Server (Thymeleaf 렌더링) ──HTML──► Browser
+                          그 후 JS → /api/v2/members (JSON 받아 채움)
+
+[v2 Vue SPA]      Browser ──HTTP──► /spa/index.html 1회 로드
+                          → Vue Router → axios → /api/v2/members → JSON 렌더
+```
+
+두 방식 모두 동일한 `/api/v2/members` REST API 를 호출 — API 는 한 곳, UI 만 두 갈래.
 
 ### Vue SPA 개발 흐름
 

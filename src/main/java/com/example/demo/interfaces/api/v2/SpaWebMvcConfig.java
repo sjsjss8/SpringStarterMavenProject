@@ -1,4 +1,4 @@
-package com.example.demo.interfaces.spa;
+package com.example.demo.interfaces.api.v2;
 
 import java.io.IOException;
 
@@ -10,7 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.resource.PathResourceResolver;
 
 /**
- * Vue.js SPA 정적 리소스 + History 모드 fallback 설정.
+ * Vue.js SPA 정적 리소스 + History 모드 fallback 설정 (v2 — SPA 식 진입점).
  *
  * <p>SPA 가 Vue Router 의 HTML5 History 모드를 쓰기 때문에 다음과 같은 문제가 생긴다:</p>
  *
@@ -28,7 +28,7 @@ import org.springframework.web.servlet.resource.PathResourceResolver;
  *   <li>그러면 브라우저에서 Vue Router 가 현재 URL 을 보고 알맞은 컴포넌트를 렌더링</li>
  * </ol>
  *
- * <p>주의: 이 설정은 /spa/&#42;&#42; 에만 적용. /api/v1/&#42;&#42; 와 /sample/&#42;&#42; (Thymeleaf) 은 영향 없음.</p>
+ * <p>주의: 이 설정은 /spa/&#42;&#42; 에만 적용. /api/v2/&#42;&#42; 와 v1 의 Thymeleaf 페이지는 영향 없음.</p>
  */
 @Configuration
 public class SpaWebMvcConfig implements WebMvcConfigurer {

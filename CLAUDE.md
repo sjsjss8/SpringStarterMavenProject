@@ -39,9 +39,8 @@ DDD-based layered architecture. Packages map directly to layers:
 
 | Package | Responsibility |
 |---|---|
-| `interfaces/api/v1/` | **Primary surface** — REST API controllers (return `ApiResponse<T>`) |
-| `interfaces/spa/` | Vue 3 SPA static-resource serving + Vue Router history-mode fallback |
-| `interfaces/sample/web/` | Thymeleaf SSR sample pages (kept as learning examples, not core flow) |
+| `interfaces/api/v1/` | **Thymeleaf 식 UI** — server-side HTML rendering (`HomeController`, `MemberWebController`) |
+| `interfaces/api/v2/` | **SPA 식 UI** — REST API (`MemberApiController` at `/api/v2/**`) + Vue SPA static handler (`SpaWebMvcConfig` at `/spa/**`) |
 | `application/` | Request/Response DTOs, MapStruct mappers |
 | `domain/` | Entities, service interfaces + `impl/`, **JPA + MyBatis** repositories |
 | `infrastructure/` | DB config, Redis, security (JWT/OAuth2), mail, external APIs (scaffold) |
@@ -53,7 +52,7 @@ DDD-based layered architecture. Packages map directly to layers:
 
 **Error Handling:** Define new errors in `ErrorCode` enum, then throw `BusinessException(errorCode)` or a subclass from `global/error/exception/`. `GlobalExceptionHandler` catches everything.
 
-**REST-only by default:** New domains add controllers under `interfaces/api/v1/{domain}/`. Thymeleaf pages are reserved for `interfaces/sample/web/` (intentionally separated so the main API surface stays clean).
+**REST-only by default:** New domains add REST controllers under `interfaces/api/v2/{domain}/`. Thymeleaf page controllers live in `interfaces/api/v1/{domain}/` and are reserved for legacy/learning use cases.
 
 **DTO Mapping:** Use MapStruct via `application/{domain}/mapper/`. Never map manually between entity and DTO.
 

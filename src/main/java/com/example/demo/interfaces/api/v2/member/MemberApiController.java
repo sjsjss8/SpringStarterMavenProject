@@ -1,4 +1,4 @@
-package com.example.demo.interfaces.api.v1.member;
+package com.example.demo.interfaces.api.v2.member;
 
 import java.util.List;
 
@@ -23,9 +23,18 @@ import com.example.demo.global.common.api.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * 회원 REST API (v2 — SPA 식 JSON 통신).
+ *
+ * <p>이 컨트롤러는 v2 패키지 = "SPA(Vue 3) 로 UI 를 해결하는 방식" 에 속한다.
+ * v1 (Thymeleaf) 의 JS 도 호환을 위해 이 v2 API 를 호출한다 — 즉 모든 클라이언트는
+ * 단일 REST API 를 공유한다.</p>
+ *
+ * <p>경로: {@code /api/v2/members/**}</p>
+ */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/members")
+@RequestMapping("/api/v2/members")
 public class MemberApiController {
 
     @Qualifier("MemberService")

@@ -12,7 +12,7 @@ import axios from 'axios';
  *     성공 시 response.data.data 만 호출자에게 전달 → 컴포넌트 코드가 깔끔해짐.
  */
 const http = axios.create({
-  baseURL: '/api/v1',
+  baseURL: '/api/v2',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
