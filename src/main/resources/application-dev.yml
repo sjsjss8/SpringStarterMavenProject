@@ -1,0 +1,26 @@
+# ============================================================
+# application-dev.yml — 개발 서버
+# DB 접속 정보: Jenkins Credentials 또는 서버 환경변수로 주입
+# ============================================================
+spring:
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+
+logging:
+  level:
+    root: INFO
+    com.example.demo: DEBUG
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 7
+
+server:
+  port: 8081

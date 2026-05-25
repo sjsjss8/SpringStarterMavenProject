@@ -1,9 +1,19 @@
 # ============================================================
-# application.yml (공통 설정)
+# application.yml — 공통 설정 (모든 프로파일에 적용)
+#
+# 프로파일 활성화 방법 (우선순위 높은 순):
+#   1. 환경변수      : SPRING_PROFILES_ACTIVE=prod
+#   2. JVM 인자      : -Dspring.profiles.active=dev
+#   3. 아래 기본값   : local (개발 PC 전용)
 # ============================================================
 spring:
+  application:
+    name: SpringStarterMavenProject
   profiles:
-    active: local
+    active: local   # 로컬 기본값 — 서버 배포 시 반드시 환경변수로 override
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
 
 mybatis:
   mapper-locations: classpath:/static/mybatis/mapper/**/*.xml
@@ -21,115 +31,3 @@ springdoc:
     operations-sorter: alpha
   api-docs:
     path: /api-docs
-
----
-# ============================================================
-# application-local.yml (로컬 개발 환경)
-# ============================================================
-spring:
-  config:
-    activate:
-      on-profile: local
-  application:
-    name: SpringStarterMavenProject
-  thymeleaf:
-    cache: false
-    prefix: classpath:/templates/
-    suffix: .html
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
-  datasource:
-    driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:50002}/${DB_NAME:SJSJSS}
-    username: ${DB_USERNAME}   # .env 파일 또는 IDE Run Configuration에서 설정
-    password: ${DB_PASSWORD}   # .env 파일 또는 IDE Run Configuration에서 설정
-  devtools:
-    restart:
-      enabled: true
-    livereload:
-      enabled: true
-
-# 로컬에서만 SQL 쿼리 콘솔 출력
-mybatis:
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-
-logging:
-  level:
-    root: INFO
-    com.example.demo: DEBUG
-    org.springframework.web: DEBUG
-  logback:
-    rollingpolicy:
-      max-file-size: 100MB
-      max-history: 7
-
-server:
-  port: 8081
-
----
-# ============================================================
-# application-dev.yml (개발 서버)
-# ============================================================
-spring:
-  config:
-    activate:
-      on-profile: dev
-  datasource:
-    driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-
-logging:
-  level:
-    root: INFO
-    com.example.demo: DEBUG
-
-server:
-  port: 8081
-
----
-# ============================================================
-# application-prod.yml (운영 서버)
-# ============================================================
-spring:
-  config:
-    activate:
-      on-profile: prod
-  datasource:
-    driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-
-logging:
-  level:
-    root: ERROR
-    com.example.demo: INFO
-  file:
-    name: /var/log/application.log
-  logback:
-    rollingpolicy:
-      max-file-size: 500MB
-      max-history: 30
-      total-size-cap: 5GB
-
-server:
-  port: 80
-  tomcat:
-    threads:
-      max: 200
-      min-spare: 10
-    max-connections: 8192
-    accept-count: 100
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: when-authorized

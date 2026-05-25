@@ -41,12 +41,8 @@ logs/
 !.env.example
 
 ### Application Properties ###
-application-*.yml
-application-*.properties
-!application.yml
-!application.properties
-# 테스트용 설정 파일 (H2 인메모리 DB - 민감 정보 없음)
-!src/test/resources/application-test.yml
+# 모든 yml/properties 파일은 환경변수 참조만 사용 (민감 정보 직접 작성 금지)
+# 실제 credentials 는 .env (로컬) 또는 Jenkins Credentials / K8s Secret (서버) 로 주입
 
 ### OS Generated Files ###
 .DS_Store
