@@ -386,4 +386,59 @@
         </plugins>
     </build>
 
+    <!--
+      ════════════════════════════════════════════════════════
+      프로파일 (Profiles)
+      ════════════════════════════════════════════════════════
+    -->
+    <profiles>
+
+        <!--
+          ── onpremise 프로파일: 고객사 납품용 ZIP 패키지 생성 ──────────────
+          활성화 방법:
+            mvn clean package -Ponpremise
+          IntelliJ: Maven 패널(우측) → Profiles → onpremise 체크 → package 실행
+
+          결과물:
+            target/SpringStarterMavenProject-1.0.jar        (JAR)
+            target/spring-starter-maven-1.0-release.zip     (ZIP 패키지)
+
+          ZIP 내부 구조:
+            spring-starter-maven-1.0/
+            ├── app.jar
+            ├── INSTALL.md
+            ├── config/application.yml   ← 고객이 DB 정보 입력
+            ├── mapper/**/*.xml          ← MyBatis SQL (고객 편집 가능)
+            └── bin/  install/start/stop/uninstall .sh .bat
+        -->
+        <profile>
+            <id>onpremise</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <version>3.7.1</version>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/assembly/onpremise.xml</descriptor>
+                            </descriptors>
+                            <finalName>spring-starter-maven-${project.version}</finalName>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>make-onpremise-package</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
+
 </project>

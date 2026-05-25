@@ -577,65 +577,19 @@ PS1EOF
             }
             steps {
                 sh """
-                    # 프로젝트 버전을 pom.xml에서 추출
-                    APP_VER=\$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-                    PKG_NAME="${APP_NAME}-\${APP_VER}"
-                    PKG_DIR="dist/\${PKG_NAME}"
+                    # -Ponpremise 프로파일로 JAR + ZIP 동시 생성
+                    # pom.xml의 onpremise 프로파일이 maven-assembly-plugin을 활성화해
+                    # src/assembly/onpremise.xml 정의대로 ZIP을 자동 구성함
+                    mvn package -Ponpremise -q
 
-                    echo "── 패키지 디렉터리 생성: \$PKG_DIR"
-                    rm -rf dist/
-                    mkdir -p "\$PKG_DIR/config"
-                    mkdir -p "\$PKG_DIR/mapper"
-                    mkdir -p "\$PKG_DIR/bin"
-                    mkdir -p "\$PKG_DIR/logs"
-
-                    # ── JAR 파일 복사 ─────────────────────────────────────────
-                    APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
-                    echo "── JAR 복사: \$APP_JAR"
-                    cp "\$APP_JAR" "\$PKG_DIR/app.jar"
-
-                    # ── 고객용 설정 파일 복사 ─────────────────────────────────
-                    # 이 파일이 JAR 옆 config/ 디렉터리에 위치하면
-                    # Spring Boot가 자동으로 JAR 내부 설정보다 우선 적용
-                    echo "── 설정 파일 복사: deploy/onpremise/config/application.yml"
-                    cp deploy/onpremise/config/application.yml "\$PKG_DIR/config/"
-
-                    # ── MyBatis XML 매퍼 복사 ────────────────────────────────
-                    # 고객이 SQL을 수정하고 싶을 때 이 폴더의 파일을 편집 후 재시작
-                    echo "── SQL 매퍼 파일 복사"
-                    find src/main/resources/static/mybatis/mapper -name "*.xml" \\
-                        -exec cp {} "\$PKG_DIR/mapper/" \\; 2>/dev/null || true
-
-                    # ── 실행 스크립트 복사 ────────────────────────────────────
-                    echo "── 시작/종료/설치 스크립트 복사"
-                    cp deploy/onpremise/bin/install.sh   "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/start.sh     "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/stop.sh      "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/uninstall.sh "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/install.bat   "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/start.bat     "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/stop.bat      "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/uninstall.bat "\$PKG_DIR/bin/"
-                    chmod +x "\$PKG_DIR/bin/"*.sh
-
-                    # ── 설치 가이드 복사 ──────────────────────────────────────
-                    cp deploy/onpremise/INSTALL.md "\$PKG_DIR/"
-
-                    # ── ZIP 패키지 생성 ───────────────────────────────────────
-                    ZIP_FILE="\${PKG_NAME}-release.zip"
-                    echo "── ZIP 생성: \$ZIP_FILE"
-                    (cd dist && zip -r "../\$ZIP_FILE" "\${PKG_NAME}/")
-
+                    ZIP_FILE=\$(ls target/*-release.zip | head -1)
                     echo ""
                     echo "✅ 온프레미스 JAR 패키지 생성 완료"
                     echo "   파일명 : \$ZIP_FILE"
                     echo "   크기   : \$(du -sh "\$ZIP_FILE" | cut -f1)"
                     echo "   Jenkins Artifacts 탭에서 다운로드 가능"
-                    echo ""
-                    echo "── 패키지 내용 ─────────────────────────────"
-                    find dist/\${PKG_NAME} -type f | sort
                 """
-                archiveArtifacts artifacts: '*-release.zip', fingerprint: true
+                archiveArtifacts artifacts: 'target/*-release.zip', fingerprint: true
             }
         }
 
