@@ -109,12 +109,13 @@
             <fileMode>0755</fileMode>
         </fileSet>
 
-        <!-- Windows 배치 스크립트 -->
+        <!-- Windows 배치 래퍼 + PowerShell 스크립트 -->
         <fileSet>
             <directory>deploy/onpremise/bin</directory>
             <outputDirectory>bin</outputDirectory>
             <includes>
                 <include>*.bat</include>
+                <include>*.ps1</include>
             </includes>
         </fileSet>
 
