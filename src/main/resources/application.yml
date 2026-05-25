@@ -22,10 +22,15 @@ spring:
     name: SpringStarterMavenProject  # 앱 식별자. 로그, actuator/info, 분산 추적에서 앱 이름으로 표시됨
 
   profiles:
-    active: local  # 기본 활성 프로파일. 운영 배포 시 반드시 환경변수로 override해야 함
-                   # K8s: configmap.yaml의 SPRING_PROFILES_ACTIVE=prod
-                   # Docker: -e SPRING_PROFILES_ACTIVE=prod
-                   # IDE:   Run Configuration → Environment variables
+    active: local  # 기본 활성 프로파일 (여기서 설정한 값보다 아래 방법들이 모두 우선함)
+                   #
+                   # Override 방법 (우선순위 높은 순):
+                   #   1. 커맨드라인 인수  : java -jar app.jar --spring.profiles.active=prod
+                   #   2. JVM 시스템 프로퍼티: java -Dspring.profiles.active=prod -jar app.jar
+                   #                         mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
+                   #   3. 환경변수        : SPRING_PROFILES_ACTIVE=prod (K8s ConfigMap, Docker -e)
+                   #   4. IDE            : IntelliJ → Run Configuration → "Active profiles" 입력란
+                   #                       (환경변수 없이도 프로파일 지정 가능)
 
   autoconfigure:
     exclude:
