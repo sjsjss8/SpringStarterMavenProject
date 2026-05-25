@@ -1,4 +1,4 @@
-package com.example.demo.interfaces.api.v2.member;
+package com.example.demo.interfaces.api.v1.member;
 
 import java.util.List;
 
@@ -24,20 +24,24 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 회원 REST API (v2 — SPA 식 JSON 통신).
+ * 회원 REST API (v1 — Thymeleaf 식 페이지의 JS 가 호출).
  *
- * <p>이 컨트롤러는 v2 패키지 = "SPA(Vue 3) 로 UI 를 해결하는 방식" 에 속한다.
- * Vue SPA 의 {@code src/main/frontend/src/api/http.ts} 가 이 엔드포인트를 호출한다.</p>
+ * <p>이 컨트롤러는 v1 패키지에 속한다 — "Thymeleaf 식 UI" 의 한 부분이다.
+ * Thymeleaf 페이지가 로드된 후, 페이지 안의 JS (resources/static/js/common/restApi.js) 가
+ * 이 엔드포인트를 호출해 데이터를 채워 넣는다.</p>
  *
- * <p>v1 ({@link com.example.demo.interfaces.api.v1.member.MemberApiController}) 와
- * 시그니처는 동일하지만, 두 API 는 의도적으로 분리되어 있다 — v1 은 Thymeleaf 페이지 호환용으로
- * 안정성을 우선하고, v2 는 SPA 전용으로 새 필드/응답 포맷을 자유롭게 도입할 수 있다.</p>
+ * <p>v2 ({@link com.example.demo.interfaces.api.v2.member.MemberApiController}) 와 시그니처는
+ * 동일하지만, 두 API 는 의도적으로 분리되어 있다:</p>
+ * <ul>
+ *   <li>v1: Thymeleaf 페이지 호환용. 안정성 우선. breaking change 금지.</li>
+ *   <li>v2: SPA 전용. 새 응답 포맷·필드를 자유롭게 도입 가능.</li>
+ * </ul>
  *
- * <p>경로: {@code /api/v2/members/**}</p>
+ * <p>경로: {@code /api/v1/members/**}</p>
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v2/members")
+@RequestMapping("/api/v1/members")
 public class MemberApiController {
 
     @Qualifier("MemberService")

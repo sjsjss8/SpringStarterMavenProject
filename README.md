@@ -52,12 +52,14 @@ SpringbootProject/
 │   │   ├── java/com/example/demo/
 │   │   │   ├── ProjectApplication.java          # 앱 시작점
 │   │   │   ├── interfaces/                      # ① 표현 계층 — v1/v2 로 UI 방식 분리
-│   │   │   │   ├── api/v1/                      #   Thymeleaf 식 (서버사이드 HTML 렌더링)
+│   │   │   │   ├── api/v1/                      #   Thymeleaf 식 UI + 그 페이지가 호출하는 v1 REST
 │   │   │   │   │   ├── HomeController.java      #     /, /sample
-│   │   │   │   │   └── member/MemberWebController.java   #  /sample/members
-│   │   │   │   └── api/v2/                      #   SPA 식 (Vue 3 + REST API)
+│   │   │   │   │   └── member/
+│   │   │   │   │       ├── MemberWebController.java     # /sample/members (HTML 렌더링)
+│   │   │   │   │       └── MemberApiController.java     # /api/v1/members (Thymeleaf JS 가 호출)
+│   │   │   │   └── api/v2/                      #   SPA 식 UI + Vue 가 호출하는 v2 REST
 │   │   │   │       ├── SpaWebMvcConfig.java     #     /spa/** 정적 리소스 + history fallback
-│   │   │   │       └── member/MemberApiController.java   #  /api/v2/members
+│   │   │   │       └── member/MemberApiController.java  # /api/v2/members (Vue 가 호출)
 │   │   │   ├── application/                     # ② 응용 계층
 │   │   │   │   └── {domain}/
 │   │   │   │       ├── dto/request/             #   요청 DTO
@@ -178,25 +180,32 @@ throw new BusinessException(ErrorCode.XXX); // GlobalExceptionHandler가 처리
 
 ### 컨트롤러 구조 — v1 (Thymeleaf) + v2 (SPA) 두 UI 방식
 
-이 프로젝트는 **두 가지 UI 방식**을 `interfaces/api/` 하위 버전으로 분리해서 한 JAR 안에 담는다.  
-REST API 는 단일 진실 공급원으로 `v2` 에 두고, 두 UI 방식이 모두 이를 호출한다.
+이 프로젝트는 **두 가지 UI 방식**을 `interfaces/api/` 하위 버전으로 완전히 분리한다.  
+각 UI 방식은 자기 전용의 페이지 컨트롤러 + REST API 컨트롤러를 가진다 — 진짜 API 버저닝.
 
-| 패키지 | UI 방식 | URL | 역할 |
+| 패키지 | UI 방식 | 페이지 컨트롤러 | REST API |
 |---|---|---|---|
-| `interfaces/api/v1/` | **Thymeleaf 식** (서버사이드 HTML 렌더링) | `/`, `/sample`, `/sample/members` | 페이지 껍데기는 서버가 렌더링, JS 가 v2 REST API 호출 |
-| `interfaces/api/v2/` | **SPA 식** (Vue 3) | `/api/v2/**` (REST), `/spa/**` (정적) | REST API + Vue SPA 진입점 |
+| `interfaces/api/v1/` | **Thymeleaf 식** (SSR) | `HomeController` (/, /sample)<br>`MemberWebController` (/sample/members) | `MemberApiController` (/api/v1/members) |
+| `interfaces/api/v2/` | **SPA 식** (Vue 3) | `SpaWebMvcConfig` (/spa/** 정적) | `MemberApiController` (/api/v2/members) |
 
 ### 데이터 흐름 비교
 
 ```
 [v1 Thymeleaf]    Browser ──HTTP──► Server (Thymeleaf 렌더링) ──HTML──► Browser
-                          그 후 JS → /api/v2/members (JSON 받아 채움)
+                          그 후 JS (restApi.js) → /api/v1/members → JSON 받아 채움
 
 [v2 Vue SPA]      Browser ──HTTP──► /spa/index.html 1회 로드
-                          → Vue Router → axios → /api/v2/members → JSON 렌더
+                          → Vue Router → axios (http.ts) → /api/v2/members → JSON 렌더
 ```
 
-두 방식 모두 동일한 `/api/v2/members` REST API 를 호출 — API 는 한 곳, UI 만 두 갈래.
+### 왜 REST API 를 v1·v2 따로 두는가?
+
+초기에는 v1 과 v2 REST API 가 시그니처가 같지만, **버저닝의 본래 목적은 미래의 분기 허용**이다:
+
+- **v1**: Thymeleaf 페이지 호환용. 안정성 우선. breaking change 금지.
+- **v2**: SPA 전용. 새 응답 포맷·필드를 자유롭게 추가 가능.
+
+만약 미래에 응답에 새 필드를 더하거나 구조를 바꿔야 한다면 v2 만 수정 → v1 클라이언트(Thymeleaf 페이지)는 그대로 동작. 단일 API 였다면 모든 클라이언트를 동시에 마이그레이션해야 함.
 
 ### Vue SPA 개발 흐름
 

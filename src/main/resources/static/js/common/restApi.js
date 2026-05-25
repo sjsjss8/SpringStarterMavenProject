@@ -1,7 +1,7 @@
 const RESTful = {
     // Axios 인스턴스 생성 및 기본 설정
     client: axios.create({
-        baseURL: '/api/v2', // SPA 식 REST API (v1 은 Thymeleaf 페이지 전용)
+        baseURL: '/api/v1', // Thymeleaf 페이지 호환용 v1 REST API (interfaces/api/v1/member/MemberApiController)
         timeout: 5000,      // 타임아웃 설정
         headers: {
             'Content-Type': 'application/json',

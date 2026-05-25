@@ -39,8 +39,8 @@ DDD-based layered architecture. Packages map directly to layers:
 
 | Package | Responsibility |
 |---|---|
-| `interfaces/api/v1/` | **Thymeleaf 식 UI** — server-side HTML rendering (`HomeController`, `MemberWebController`) |
-| `interfaces/api/v2/` | **SPA 식 UI** — REST API (`MemberApiController` at `/api/v2/**`) + Vue SPA static handler (`SpaWebMvcConfig` at `/spa/**`) |
+| `interfaces/api/v1/` | **Thymeleaf 식 UI** — `HomeController`, `MemberWebController` (HTML 렌더링) + `MemberApiController` (/api/v1/** — Thymeleaf JS 호환용) |
+| `interfaces/api/v2/` | **SPA 식 UI** — `SpaWebMvcConfig` (/spa/** Vue 정적 진입점) + `MemberApiController` (/api/v2/** — SPA 전용 REST) |
 | `application/` | Request/Response DTOs, MapStruct mappers |
 | `domain/` | Entities, service interfaces + `impl/`, **JPA + MyBatis** repositories |
 | `infrastructure/` | DB config, Redis, security (JWT/OAuth2), mail, external APIs (scaffold) |
