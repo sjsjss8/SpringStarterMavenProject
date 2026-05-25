@@ -1,30 +1,50 @@
+# ============================================================
+# .editorconfig — 에디터 공통 설정
+# ============================================================
+# 역할:
+#   VS Code, IntelliJ, Eclipse 등 다양한 IDE에서 코드 형식을 통일.
+#   팀원마다 다른 IDE를 써도 들여쓰기, 인코딩, 줄바꿈 방식이 동일하게 유지됨.
+#
+# 지원 에디터:
+#   IntelliJ IDEA / Android Studio : 기본 지원
+#   VS Code                        : EditorConfig 확장 프로그램 설치 필요
+#   Eclipse / STS                  : EditorConfig 플러그인 설치 필요
+#
+# root=true 의미:
+#   이 파일에서 .editorconfig 탐색을 멈춤.
+#   없으면 상위 디렉터리로 계속 탐색해 다른 .editorconfig를 찾음.
+# ============================================================
+
 root = true
 
-# ── 전체 파일 공통 ────────────────────────────────────────────────────────────
+# ── 전체 파일 공통 설정 ──────────────────────────────────────────────────────
 [*]
-charset = utf-8
-end_of_line = lf
-indent_style = space
-indent_size = 4
-insert_final_newline = true
-trim_trailing_whitespace = true
+charset = utf-8                 # 파일 인코딩: UTF-8 (한글 깨짐 방지)
+end_of_line = lf                # 줄바꿈: LF (Unix/Linux/Mac 방식)
+                                # Windows는 CRLF를 쓰지만 Git/Docker/Linux 서버 호환을 위해 LF 통일
+                                # .gitattributes에서 mvnw=lf, *.cmd=crlf로 파일별 예외 처리 중
+indent_style = space            # 들여쓰기: 탭 대신 스페이스 사용
+indent_size = 4                 # 들여쓰기 크기: 스페이스 4칸 (Java 표준)
+insert_final_newline = true     # 파일 끝에 빈 줄 추가 (Unix 관례, diff 깔끔해짐)
+trim_trailing_whitespace = true # 줄 끝 공백 자동 제거
 
-# ── YAML (2스페이스 들여쓰기가 표준) ────────────────────────────────────────
+# ── YAML 파일 ────────────────────────────────────────────────────────────────
 [*.{yml,yaml}]
-indent_size = 2
+indent_size = 2  # YAML은 2스페이스가 업계 표준 (4스페이스는 지나치게 깊은 들여쓰기가 됨)
 
-# ── XML (pom.xml, spotbugs-exclude.xml 등) ──────────────────────────────────
+# ── XML 파일 (pom.xml, spotbugs-exclude.xml 등) ──────────────────────────────
 [*.xml]
-indent_size = 4
+indent_size = 4  # XML/Java 계열은 4스페이스
 
-# ── Markdown (줄 끝 공백이 줄바꿈 의미를 가질 수 있음) ──────────────────────
+# ── Markdown 문서 ────────────────────────────────────────────────────────────
 [*.md]
-trim_trailing_whitespace = false
+trim_trailing_whitespace = false  # Markdown에서 줄 끝 스페이스 2개는 줄바꿈(<br>) 의미
+                                  # 자동 제거하면 의도한 줄바꿈이 사라짐
 
 # ── Windows 배치 스크립트 ────────────────────────────────────────────────────
 [*.{cmd,bat}]
-end_of_line = crlf
+end_of_line = crlf  # Windows 배치 파일은 CRLF 필수 (LF면 실행 오류 발생)
 
-# ── Makefile (탭 들여쓰기 필수) ─────────────────────────────────────────────
+# ── Makefile ─────────────────────────────────────────────────────────────────
 [Makefile]
-indent_style = tab
+indent_style = tab  # Makefile은 탭 들여쓰기가 문법적으로 필수 (스페이스면 오류)

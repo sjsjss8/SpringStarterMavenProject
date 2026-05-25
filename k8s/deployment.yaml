@@ -1,87 +1,139 @@
-apiVersion: apps/v1
-kind: Deployment
+# ============================================================
+# k8s/deployment.yaml — Kubernetes Deployment 설정
+# ============================================================
+# 역할:
+#   Kubernetes 클러스터에서 Spring Boot 앱을 어떻게 실행할지 정의.
+#   "이 앱을 몇 개의 복사본으로 실행하고, 어떤 이미지를 쓰고,
+#    어떻게 업데이트하고, 얼마나 자원을 쓸지"를 선언.
+#
+# 적용 명령어:
+#   kubectl apply -f k8s/deployment.yaml   배포/업데이트
+#   kubectl get pods                        파드 상태 확인
+#   kubectl describe deployment spring-starter-maven  상세 정보
+#   kubectl rollout undo deployment spring-starter-maven  이전 버전으로 롤백
+#
+# Jenkins 파이프라인에서:
+#   IMAGE_PLACEHOLDER를 실제 이미지 태그로 sed 치환 후 kubectl apply 실행
+# ============================================================
+
+apiVersion: apps/v1   # Kubernetes API 버전. Deployment는 apps/v1 그룹에 속함
+kind: Deployment      # 리소스 종류. Deployment = 파드를 관리하고 롤링 업데이트를 수행하는 컨트롤러
+
 metadata:
-  name: spring-starter-maven
-  namespace: default
+  name: spring-starter-maven   # Deployment 이름 (kubectl 명령에서 참조)
+  namespace: default           # 배포될 네임스페이스. 팀/서비스별로 네임스페이스를 분리하기도 함
   labels:
-    app: spring-starter-maven
+    app: spring-starter-maven  # 이 Deployment에 붙는 레이블. service.yaml의 selector와 일치해야 트래픽 라우팅됨
+
 spec:
-  replicas: 2                       # 파드 2개 → 한 개 재시작 중에도 무중단
+  replicas: 2  # 동시에 실행할 파드(컨테이너) 개수
+               # 2개: 한 파드가 업데이트/장애 중에도 다른 파드가 트래픽 처리 → 무중단 서비스
+
   selector:
     matchLabels:
-      app: spring-starter-maven
+      app: spring-starter-maven  # 이 Deployment가 관리할 파드를 레이블로 선택
+
   strategy:
-    type: RollingUpdate
+    type: RollingUpdate  # 업데이트 방식. RollingUpdate = 구버전을 점진적으로 신버전으로 교체
+                         # Recreate로 바꾸면 구버전 전체 삭제 후 신버전 시작 (짧은 다운타임 발생)
     rollingUpdate:
-      maxSurge: 1                   # 배포 중 최대 1개 초과 실행 허용
-      maxUnavailable: 0             # 배포 중 중단 파드 0개 → 완전 무중단
+      maxSurge: 1        # 업데이트 중 replicas를 초과해 추가로 실행할 수 있는 파드 수
+                         # replicas=2 + maxSurge=1 → 업데이트 중 최대 3개 파드 실행
+      maxUnavailable: 0  # 업데이트 중 사용 불가 상태로 만들 수 있는 파드 수
+                         # 0 = 항상 replicas(2)개가 트래픽 처리 가능 → 완전 무중단 배포
+
   template:
+    # 여기서부터는 실제로 생성될 파드(Pod)의 명세
     metadata:
       labels:
-        app: spring-starter-maven
+        app: spring-starter-maven  # 파드에 붙는 레이블 (selector.matchLabels와 일치해야 함)
+
     spec:
-      terminationGracePeriodSeconds: 60   # SIGTERM 후 최대 60s 대기 (처리 중 요청 마무리)
+      terminationGracePeriodSeconds: 60
+      # 파드 종료 시 SIGTERM 신호를 보내고 이 시간(60초) 동안 정상 종료를 기다림
+      # 처리 중인 HTTP 요청이 있으면 완료될 때까지 기다림 (요청 손실 방지)
+      # 60초가 지나도 종료 안 되면 SIGKILL로 강제 종료
+
       containers:
-        - name: spring-starter-maven
-          image: IMAGE_PLACEHOLDER         # Jenkins가 빌드 번호 태그로 자동 치환
-          imagePullPolicy: Always          # 같은 태그라도 항상 최신 이미지 Pull
+        - name: spring-starter-maven  # 컨테이너 이름 (kubectl logs spring-starter-maven-xxx -c 이름)
+          image: IMAGE_PLACEHOLDER    # Jenkins가 배포 시 실제 이미지 태그로 치환
+                                      # 예: myid/spring-app:build-42
+          imagePullPolicy: Always     # 컨테이너 시작 시 항상 최신 이미지를 Registry에서 pull
+                                      # IfNotPresent로 바꾸면 로컬 캐시 이미지 우선 사용 (버전 태그 사용 시 권장)
+
           ports:
-            - containerPort: 8081
+            - containerPort: 8081  # 컨테이너 내부에서 앱이 사용하는 포트 (문서화 목적, 실제 개방은 Service가 담당)
+
           env:
-            # ── 비민감 설정 (ConfigMap) ───────────────────────────────────────
-            - name: SPRING_PROFILES_ACTIVE
+            # ── 비민감 설정: ConfigMap에서 주입 ────────────────────────────
+            # ConfigMap: 비밀번호가 아닌 일반 설정값 저장소 (Base64 인코딩 없음, 평문)
+            - name: SPRING_PROFILES_ACTIVE   # Spring 프로파일 (prod)
               valueFrom:
                 configMapKeyRef:
-                  name: spring-app-config
+                  name: spring-app-config    # configmap.yaml의 metadata.name
                   key: SPRING_PROFILES_ACTIVE
-            - name: DB_HOST
+
+            - name: DB_HOST                  # DB 서버 주소 (민감 정보 아님 → ConfigMap)
               valueFrom:
                 configMapKeyRef:
                   name: spring-app-config
                   key: DB_HOST
-            - name: DB_PORT
+
+            - name: DB_PORT                  # DB 포트 (민감 정보 아님 → ConfigMap)
               valueFrom:
                 configMapKeyRef:
                   name: spring-app-config
                   key: DB_PORT
-            - name: DB_NAME
+
+            - name: DB_NAME                  # DB 이름 (민감 정보 아님 → ConfigMap)
               valueFrom:
                 configMapKeyRef:
                   name: spring-app-config
                   key: DB_NAME
-            # ── 민감 정보 (Secret) ───────────────────────────────────────────
-            - name: DB_USERNAME
+
+            # ── 민감 정보: Secret에서 주입 ──────────────────────────────────
+            # Secret: 비밀번호/계정 같은 민감 정보 저장소 (Base64 인코딩, etcd에 암호화 저장)
+            - name: DB_USERNAME              # DB 계정명 (민감 → Secret)
               valueFrom:
                 secretKeyRef:
-                  name: spring-app-secret
+                  name: spring-app-secret    # secret.yaml의 metadata.name
                   key: DB_USERNAME
-            - name: DB_PASSWORD
+
+            - name: DB_PASSWORD              # DB 비밀번호 (민감 → Secret)
               valueFrom:
                 secretKeyRef:
                   name: spring-app-secret
                   key: DB_PASSWORD
+
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: "512Mi"  # 파드 스케줄링 시 최소 보장 메모리. 512MB 가용 노드에 배치됨
+              cpu: "250m"      # 최소 보장 CPU. 1000m = 1 CPU 코어. 250m = 0.25 코어
             limits:
-              memory: "1Gi"
-              cpu: "500m"
-          # readinessProbe: 트래픽 수신 준비 완료 여부 (실패 시 로드밸런서에서 제외)
-          # → /readiness : Spring Boot가 관리하는 ReadinessState (DB 연결 등 확인)
+              memory: "1Gi"    # 최대 허용 메모리. 초과 시 OOMKilled(강제 종료) 발생
+              cpu: "500m"      # 최대 허용 CPU. 초과해도 종료는 안 되고 스로틀링됨
+
+          # ── readinessProbe: 트래픽 수신 준비 완료 여부 ────────────────────
+          # 이 체크가 성공해야 Service가 이 파드로 트래픽을 보냄 (실패 시 로드밸런서에서 제외)
+          # 앱 기동 중이거나 DB 연결 안 됐을 때 트래픽 차단에 사용
+          # /readiness : Spring Boot가 관리하는 ReadinessState
+          #              DB 연결, 외부 서비스 준비 여부 등을 포함
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /actuator/health/readiness  # Spring Boot 2.3+ 전용 엔드포인트
               port: 8081
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            failureThreshold: 3
-          # livenessProbe: 파드 생존 여부 (실패 시 컨테이너 자동 재시작)
-          # → /liveness : 앱 자체가 정상 동작 중인지 (교착상태 등 감지)
+            initialDelaySeconds: 30   # 컨테이너 시작 후 30초 뒤 첫 체크 (앱 기동 시간 여유)
+            periodSeconds: 10         # 10초마다 반복 체크
+            failureThreshold: 3       # 3번 연속 실패 시 "Not Ready" → 트래픽 차단
+
+          # ── livenessProbe: 파드 생존 여부 ────────────────────────────────
+          # 이 체크가 실패하면 Kubernetes가 컨테이너를 재시작
+          # 교착상태(Deadlock)나 응답 불능 상태를 감지해 자동 복구
+          # /liveness : 앱 자체가 살아있는지 (readiness보다 더 기본적인 체크)
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /actuator/health/liveness   # Spring Boot 2.3+ 전용 엔드포인트
               port: 8081
-            initialDelaySeconds: 60
-            periodSeconds: 30
-            failureThreshold: 3
+            initialDelaySeconds: 60   # readiness보다 길게 설정 (기동 중 재시작 방지)
+            periodSeconds: 30         # 30초마다 체크 (readiness보다 느슨하게)
+            failureThreshold: 3       # 3번 연속 실패 시 컨테이너 재시작

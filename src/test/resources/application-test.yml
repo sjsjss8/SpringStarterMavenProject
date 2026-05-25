@@ -1,19 +1,41 @@
 # ============================================================
-# application-test.yml — 테스트 환경
-# H2 인메모리 DB 사용 — Jenkins CI에서 MariaDB 없이 실행
-# mybatis, springdoc, autoconfigure 설정은 application.yml 공통에서 상속
+# application-test.yml — 테스트 전용 환경 설정
 # ============================================================
+# 역할:
+#   JUnit 테스트 실행 시 사용되는 설정.
+#   MariaDB 없이도 Spring 컨텍스트를 로딩할 수 있도록 H2 인메모리 DB를 사용.
+#
+# 활성화 방법:
+#   테스트 클래스에 @ActiveProfiles("test") 애노테이션 추가
+#   예: @SpringBootTest @ActiveProfiles("test") class MemberApplicationTests { ... }
+#
+# H2 인메모리 DB 사용 이유:
+#   Jenkins CI 서버에는 MariaDB가 설치되어 있지 않음.
+#   테스트를 실행할 때마다 DB를 새로 만들고 테스트 후 자동 삭제 → 깨끗한 상태 보장.
+#   (application.yml의 공통 설정은 그대로 상속됨)
+#
+# 테스트 실행:
+#   mvnw.cmd test                                전체 테스트
+#   mvnw.cmd test -Dtest=MemberApplicationTests  특정 테스트 클래스만 실행
+# ============================================================
+
 spring:
   datasource:
     url: jdbc:h2:mem:testdb;MODE=MariaDB;DATABASE_TO_LOWER=TRUE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    # jdbc:h2:mem:testdb  : 'testdb'라는 이름의 메모리 DB 생성 (JVM 종료 시 삭제)
+    # MODE=MariaDB        : MariaDB 문법을 흉내내어 MariaDB용 SQL이 H2에서도 동작하게 함
+    # DATABASE_TO_LOWER=TRUE : 테이블/컬럼명을 소문자로 처리 (MariaDB 기본 동작과 동일하게)
+    driver-class-name: org.h2.Driver  # H2 내장 JDBC 드라이버 (pom.xml에 test scope로 선언)
+    username: sa        # H2 기본 계정 (System Administrator)
+    password:           # H2 기본 비밀번호 없음 (빈 값)
+
 
 logging:
   level:
-    root: WARN
-    com.example.demo: INFO
+    root: WARN              # 테스트 시: WARN 이상만 출력 (콘솔 로그 최소화)
+    com.example.demo: INFO  # 내 코드는 INFO로 (테스트 결과 추적에 필요한 정보만)
+
 
 server:
-  port: 8081
+  port: 8081  # 테스트에서는 실제로 포트를 열지 않지만 설정값은 필요
+              # @SpringBootTest(webEnvironment=RANDOM_PORT) 사용 시 랜덤 포트로 override됨

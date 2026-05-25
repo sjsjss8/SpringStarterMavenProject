@@ -1,10 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================
+  spotbugs-exclude.xml — SpotBugs 오탐(False Positive) 제외 규칙
+  ============================================================
+  역할:
+    SpotBugs가 버그로 탐지하지만 실제로는 문제없는 패턴을 제외 처리.
+    pom.xml의 spotbugs-maven-plugin에서 excludeFilterFile로 참조됨.
+
+  적용 방법:
+    mvnw.cmd spotbugs:check 실행 시 이 파일의 규칙이 자동 적용됨.
+
+  새 제외 규칙 추가 방법:
+    <Match>
+        <Bug pattern="규칙_이름"/>
+        <Class name="com.example.demo.특정.클래스"/>  (선택: 특정 클래스만 제외)
+    </Match>
+
+  제외 대신 수정을 고려해야 하는 경우:
+    - 실제 코드 문제인데 편의상 제외하는 것은 보안 위험
+    - 오탐으로 확인된 패턴만 추가할 것
+  ============================================================
+-->
 <FindBugsFilter>
 
     <!--
-        EI_EXPOSE_REP / EI_EXPOSE_REP2 : 외부 가변 객체 노출 경고
-        Spring @RequiredArgsConstructor DI 패턴에서 발생하는 오탐(False Positive)
-        IoC 컨테이너가 빈의 생명주기를 관리하므로 실제 보안 위협 없음
+      EI_EXPOSE_REP / EI_EXPOSE_REP2
+      경고 내용: "외부에서 전달된 가변 객체를 필드에 직접 저장하면 외부에서 내부 상태를 변경할 수 있음"
+      예: setList(List<String> list) { this.list = list; }  → 외부에서 list를 수정하면 내부도 바뀜
+
+      왜 오탐인가?
+        Spring의 @RequiredArgsConstructor + @Autowired 패턴에서 IoC 컨테이너가 주입하는 객체들
+        (Repository, Service 등)은 Spring이 생명주기를 관리하므로 외부에서 임의로 수정되지 않음.
+        SpotBugs는 Spring의 DI 컨텍스트를 이해하지 못해 오탐으로 경고를 발생시킴.
+
+      실제 위험한 경우와의 구분:
+        외부 입력값을 받는 일반 DTO/Entity 클래스에서 이 패턴이 나오면 실제 버그일 수 있음.
+        Spring 빈(Service, Repository)에 국한된 경우만 이 규칙으로 제외할 것.
     -->
     <Match>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>

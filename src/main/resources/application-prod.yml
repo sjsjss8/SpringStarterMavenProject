@@ -1,40 +1,78 @@
 # ============================================================
-# application-prod.yml — 운영 서버
-# DB 접속 정보: Kubernetes Secret 또는 서버 환경변수로 주입
+# application-prod.yml — 운영 서버 설정
 # ============================================================
+# 역할:
+#   실제 사용자가 사용하는 운영(Production) 환경 설정.
+#   로컬/개발 환경과 달리 다음을 중점에 둠:
+#     - 보안: SQL 쿼리 로그 미출력, actuator 엔드포인트 최소 노출
+#     - 성능: Tomcat 스레드/커넥션 튜닝, JVM 메모리 최적화
+#     - 안정성: 로그 파일 영구 보관, 롤링 정책
+#
+# 활성화 방법:
+#   K8s:    k8s/configmap.yaml의 SPRING_PROFILES_ACTIVE=prod
+#   Docker: docker-compose.prod.yml의 SPRING_PROFILES_ACTIVE=prod
+#
+# DB 접속 정보:
+#   K8s:    k8s/secret.yaml → 환경변수로 Pod에 주입
+#   Docker: 원격 서버 .env 파일 또는 Jenkins 파이프라인에서 주입
+# ============================================================
+
 spring:
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
     url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
-    username: ${DB_USERNAME}
+    # 운영 환경: DB_HOST, DB_NAME 기본값 없음 → 미설정 시 기동 실패 (의도적)
+    # 실수로 운영 서버가 잘못된 DB에 연결되는 것을 방지
+    username: ${DB_USERNAME}  # K8s Secret 또는 Docker 환경변수로 주입
     password: ${DB_PASSWORD}
+
 
 logging:
   level:
-    root: ERROR
-    com.example.demo: INFO
+    root: ERROR            # 운영: ERROR 레벨만 출력 (불필요한 INFO/DEBUG 로그 제거)
+                           # 로그가 적을수록 성능 오버헤드 감소 + 중요 에러가 묻히지 않음
+    com.example.demo: INFO # 내 코드는 INFO까지 출력 (주요 비즈니스 이벤트 기록)
   file:
-    name: /var/log/application.log
+    name: /var/log/application.log  # 로그 파일 저장 경로
+                                     # Docker: 컨테이너 내 /var/log/
+                                     # K8s: PersistentVolume 마운트 필요 (또는 ELK/CloudWatch로 수집)
   logback:
     rollingpolicy:
-      max-file-size: 500MB
-      max-history: 30
-      total-size-cap: 5GB
+      max-file-size: 500MB    # 로그 파일 하나의 최대 크기 (500MB 초과 시 새 파일로 롤링)
+      max-history: 30         # 최대 30개 파일 보관 (약 1개월치 로그)
+      total-size-cap: 5GB     # 전체 로그 파일 합계 최대 5GB (초과 시 오래된 파일 삭제)
+
 
 server:
-  port: 80
+  port: 80  # 운영 서버는 표준 HTTP 포트 80에서 직접 서비스
+            # K8s나 로드밸런서 환경에서는 8081 사용 후 외부에서 80으로 매핑하는 것이 일반적
+
   tomcat:
     threads:
-      max: 200
-      min-spare: 10
-    max-connections: 8192
-    accept-count: 100
+      max: 200          # 최대 동시 처리 스레드 수 (기본값 200)
+                        # 높이면 더 많은 동시 요청 처리 가능하지만 메모리 사용량 증가
+      min-spare: 10     # 유휴 상태에서 미리 준비해두는 스레드 수 (요청 급증 시 즉시 대응)
+    max-connections: 8192   # Tomcat이 수락할 수 있는 최대 동시 TCP 연결 수
+    accept-count: 100       # 모든 스레드가 바쁠 때 대기열에 쌓을 수 있는 요청 수
+                            # 대기열이 차면 이후 요청은 거절 (503 Service Unavailable)
 
+
+# ── Spring Boot Actuator (모니터링 엔드포인트) ────────────────────────────────
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics
+        # 운영에서 노출할 엔드포인트만 명시적으로 허용
+        #   health  : K8s probe, 로드밸런서 헬스체크, 모니터링 도구
+        #   info    : 앱 버전, 빌드 시간 등 메타정보
+        #   metrics : Prometheus 연동 (메트릭 수집)
+        # 그 외 엔드포인트(env, beans, heapdump 등)는 보안상 비노출
+
   endpoint:
     health:
       show-details: when-authorized
+      # 헬스 상세 정보(DB 상태, 디스크 공간 등) 표시 조건:
+      #   always          : 항상 표시 (보안 취약 - 인증 없는 사용자에게 인프라 정보 노출)
+      #   when-authorized : 인증된 사용자에게만 표시 (권장)
+      #   never           : 상태만 표시 (UP/DOWN)

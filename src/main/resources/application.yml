@@ -1,33 +1,70 @@
 # ============================================================
-# application.yml — 공통 설정 (모든 프로파일에 적용)
-#
-# 프로파일 활성화 방법 (우선순위 높은 순):
-#   1. 환경변수      : SPRING_PROFILES_ACTIVE=prod
-#   2. JVM 인자      : -Dspring.profiles.active=dev
-#   3. 아래 기본값   : local (개발 PC 전용)
+# application.yml — Spring Boot 공통 설정
 # ============================================================
+# 역할:
+#   모든 프로파일(local/dev/prod/test)에 공통으로 적용되는 설정.
+#   프로파일별 설정은 각각의 파일(application-{profile}.yml)에서 override 가능.
+#
+# 설정 파일 로딩 순서 (우선순위 높은 순):
+#   1. 환경변수       SPRING_PROFILES_ACTIVE=prod
+#   2. JVM 인자       -Dspring.profiles.active=prod
+#   3. 이 파일의 기본값  active: local
+#
+# 프로파일별 파일:
+#   application-local.yml  로컬 개발 환경 (기본값)
+#   application-dev.yml    개발 서버
+#   application-prod.yml   운영 서버
+#   application-test.yml   테스트 (Jenkins CI)
+# ============================================================
+
 spring:
   application:
-    name: SpringStarterMavenProject
+    name: SpringStarterMavenProject  # 앱 식별자. 로그, actuator/info, 분산 추적에서 앱 이름으로 표시됨
+
   profiles:
-    active: local   # 로컬 기본값 — 서버 배포 시 반드시 환경변수로 override
+    active: local  # 기본 활성 프로파일. 운영 배포 시 반드시 환경변수로 override해야 함
+                   # K8s: configmap.yaml의 SPRING_PROFILES_ACTIVE=prod
+                   # Docker: -e SPRING_PROFILES_ACTIVE=prod
+                   # IDE:   Run Configuration → Environment variables
+
   autoconfigure:
     exclude:
+      # Spring Session 자동설정 제외
+      # Redis 기반 세션 관리 기능인데 아직 구현하지 않아 비활성화
+      # 활성화하면 기동 시 "Redis 연결 필요" 오류 발생
       - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
 
+
+# ── MyBatis 설정 ─────────────────────────────────────────────────────────────
 mybatis:
   mapper-locations: classpath:/static/mybatis/mapper/**/*.xml
+  # SQL이 작성된 XML 파일 위치. ** = 하위 모든 디렉터리, *.xml = 모든 XML 파일
+  # classpath: = src/main/resources/ 디렉터리 기준
+
   type-aliases-package: com.example.demo
+  # 이 패키지 하위 클래스는 XML에서 전체 경로 없이 클래스 이름만으로 참조 가능
+  # 예: com.example.demo.domain.member.entity.Member → Member 로 축약
+
   configuration:
     map-underscore-to-camel-case: true
-    jdbc-type-for-null: NULL
-    call-setters-on-nulls: true
+    # DB 컬럼명(snake_case)을 자바 필드명(camelCase)으로 자동 변환
+    # 예: created_at (DB) → createdAt (Java)
 
+    jdbc-type-for-null: NULL
+    # null 값을 DB에 보낼 때 사용할 JDBC 타입. NULL로 지정하면 MyBatis가 자동 처리
+
+    call-setters-on-nulls: true
+    # 쿼리 결과에 null 값이 있어도 setter를 호출해 필드에 null을 명시적으로 설정
+    # false이면 null 컬럼은 setter가 호출되지 않아 이전 값이 남을 수 있음
+
+
+# ── Swagger UI 설정 (springdoc-openapi) ──────────────────────────────────────
 springdoc:
   swagger-ui:
-    path: /swagger-ui.html
-    groups-order: DESC
-    tags-sorter: alpha
-    operations-sorter: alpha
+    path: /swagger-ui.html        # Swagger UI 접속 경로 (기본값: /swagger-ui/index.html)
+    groups-order: DESC            # API 그룹 정렬 순서 (DESC: 내림차순)
+    tags-sorter: alpha            # 태그(@Tag)를 알파벳 순으로 정렬
+    operations-sorter: alpha      # 각 태그 내 API를 알파벳 순으로 정렬
   api-docs:
-    path: /api-docs
+    path: /api-docs               # OpenAPI JSON 스펙 파일 경로 (기본값: /v3/api-docs)
+                                  # Postman import 또는 자동 문서 생성 도구에서 이 URL 사용

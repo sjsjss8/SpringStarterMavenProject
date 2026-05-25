@@ -1,38 +1,69 @@
 # ============================================================
-# application-local.yml — 로컬 개발 환경
-# 실행: mvnw spring-boot:run  (기본 프로파일)
-# DB 접속 정보: 프로젝트 루트 .env 파일에서 설정
+# application-local.yml — 로컬 개발 환경 설정
 # ============================================================
+# 역할:
+#   개발자 PC에서 직접 실행할 때 사용하는 설정.
+#   application.yml의 공통 설정을 상속하고, 로컬 개발에 편리한 설정을 추가.
+#
+# 활성화 방법:
+#   application.yml의 profiles.active=local 이 기본값이므로 별도 설정 불필요.
+#   또는 IDE Run Configuration → Environment: SPRING_PROFILES_ACTIVE=local
+#
+# DB 접속 정보:
+#   프로젝트 루트의 .env 파일에서 주입 (cp .env.example .env 후 값 수정)
+#   IDE에서 직접 실행 시: Run Configuration → Environment variables에 추가
+#
+# 실행: mvnw.cmd spring-boot:run
+# ============================================================
+
 spring:
   datasource:
-    driver-class-name: org.mariadb.jdbc.Driver
+    driver-class-name: org.mariadb.jdbc.Driver  # MariaDB JDBC 드라이버 클래스 (pom.xml의 mariadb-java-client)
     url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:50002}/${DB_NAME:SJSJSS}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    # JDBC 연결 URL 형식: jdbc:mariadb://호스트:포트/데이터베이스명
+    # ${변수:기본값}: 환경변수 없을 때 기본값 사용
+    #   DB_HOST → 없으면 localhost
+    #   DB_PORT → 없으면 50002 (로컬 MariaDB 포트. 표준 3306과 다른 경우 .env에서 변경)
+    #   DB_NAME → 없으면 SJSJSS
+    username: ${DB_USERNAME}  # .env 파일의 DB_USERNAME. 기본값 없음 → 없으면 기동 실패 (의도적)
+    password: ${DB_PASSWORD}  # .env 파일의 DB_PASSWORD. 기본값 없음 → 없으면 기동 실패 (의도적)
+
   thymeleaf:
-    cache: false
-    prefix: classpath:/templates/
-    suffix: .html
+    cache: false           # 템플릿 캐시 비활성화. HTML 파일 수정 후 서버 재시작 없이 바로 반영됨
+    prefix: classpath:/templates/  # HTML 파일 위치: src/main/resources/templates/
+    suffix: .html                  # 뷰 이름에 자동으로 붙는 확장자 (예: "home" → "home.html")
+
   devtools:
     restart:
-      enabled: true
+      enabled: true    # 클래스 파일 변경 시 서버 자동 재시작 (전체 재기동보다 훨씬 빠름)
     livereload:
-      enabled: true
+      enabled: true    # 정적 리소스/템플릿 변경 시 브라우저 자동 새로고침
+                       # 브라우저에 LiveReload 플러그인 설치 또는 Spring Tools Suite 사용
 
-# 로컬에서만 SQL 쿼리 콘솔 출력
+
+# SQL 쿼리 콘솔 출력 (로컬에서만 활성화)
+# 실행되는 SQL을 콘솔에서 바로 확인 → 쿼리 디버깅 편리
+# 운영 환경에서는 성능 저하 + 민감 데이터 노출 위험 → 이 파일에서만 설정
 mybatis:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # StdOutImpl: System.out(콘솔)에 SQL + 파라미터 + 결과 출력
+    # SLF4jImpl으로 바꾸면 로그 파일에 기록 (로컬에서는 콘솔이 더 편함)
+
 
 logging:
   level:
-    root: INFO
-    com.example.demo: DEBUG
-    org.springframework.web: DEBUG
+    root: INFO                        # 전체 기본 로그 레벨: INFO 이상만 출력
+    com.example.demo: DEBUG           # 내 코드는 DEBUG까지 상세하게 출력
+    org.springframework.web: DEBUG    # Spring MVC 요청/응답 처리 과정도 DEBUG로 출력
+                                      # (어떤 컨트롤러가 어떤 요청을 처리하는지 추적 가능)
   logback:
     rollingpolicy:
-      max-file-size: 10MB
-      max-history: 7
+      max-file-size: 10MB   # 로그 파일 하나의 최대 크기 (10MB 초과 시 새 파일로 롤링)
+      max-history: 7        # 최대 7개 파일 보관 (오래된 파일 자동 삭제)
+                            # 로컬에서는 10MB로 충분. prod는 500MB 설정
+
 
 server:
-  port: 8081
+  port: 8081  # 로컬 서버 포트. 8080(Spring 기본값)과 달리 8081 사용
+              # 이미 8080 사용 중인 다른 서비스와 충돌 방지
