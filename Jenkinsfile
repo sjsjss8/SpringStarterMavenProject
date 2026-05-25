@@ -72,9 +72,10 @@ pipeline {
         DOCKER_TAG    = "${env.BUILD_NUMBER}"
 
         // [server-jar / server-jar-zip / server-blue-green / server-docker] 원격 서버 정보
-        REMOTE_HOST   = '원격서버IP'                       // ← 원격 서버 IP로 변경
-        REMOTE_USER   = 'ubuntu'                           // ← 원격 서버 계정으로 변경
-        REMOTE_PATH   = '/home/ubuntu/app'
+        REMOTE_HOST   = 'host.docker.internal'               // WSL → Windows 포트 포워딩 경유
+        REMOTE_PORT   = '2222'                               // Windows → WSL :22 포워딩 포트
+        REMOTE_USER   = 'root'
+        REMOTE_PATH   = '/mnt/c/SJSJSS/Project/01.File/StarterMavenProject'
 
         // [server-docker / server-k8s] Docker Hub Credentials ID
         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
@@ -245,15 +246,15 @@ pipeline {
                             usernameVariable: 'SSH_USER'
                         )]) {
                             sh """
-                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no -p ${REMOTE_PORT} \\
                                     ${REMOTE_USER}@${REMOTE_HOST} \\
                                     "mkdir -p ${REMOTE_PATH}"
 
-                                scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                scp -i \$SSH_KEY -o StrictHostKeyChecking=no -P ${REMOTE_PORT} \\
                                     target/app.jar \\
                                     ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/app-new.jar
 
-                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no -p ${REMOTE_PORT} \\
                                     ${REMOTE_USER}@${REMOTE_HOST} "
                                         # PID 파일로 정확히 이 앱만 종료 (pkill 미사용)
                                         if [ -f ${REMOTE_PATH}/app.pid ]; then
