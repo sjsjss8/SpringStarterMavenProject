@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================
+  src/assembly/onpremise.xml — Maven Assembly 디스크립터
+  ============================================================
+  역할:
+    mvn -f pom_onpremise.xml package 실행 시 생성될 ZIP 파일의
+    내부 구조를 정의한다.
+
+  결과 ZIP 구조:
+    spring-starter-maven-1.0/
+    ├── app.jar                    ← Fat JAR (java -jar 로 바로 실행)
+    ├── INSTALL.md                 ← 설치 가이드
+    ├── config/
+    │   └── application.yml       ← DB/포트 설정 (고객이 편집)
+    ├── mapper/
+    │   └── **/*.xml              ← MyBatis SQL (고객이 SQL 수정 시 편집)
+    └── bin/
+        ├── install.sh            ← Linux  최초 설치 자동화
+        ├── install.bat           ← Windows 최초 설치 자동화
+        ├── start.sh              ← Linux  시작
+        ├── start.bat             ← Windows 시작
+        ├── stop.sh               ← Linux  종료
+        ├── stop.bat              ← Windows 종료
+        ├── uninstall.sh          ← Linux  제거
+        └── uninstall.bat         ← Windows 제거
+  ============================================================
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0
+          https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+
+    <!--
+      ZIP 파일명 = pom_onpremise.xml 의 <finalName>-<id>.zip
+      예: spring-starter-maven-1.0-release.zip
+    -->
+    <id>release</id>
+
+    <formats>
+        <format>zip</format>
+    </formats>
+
+    <!-- ZIP 안에 최상위 디렉터리 포함 (예: spring-starter-maven-1.0/) -->
+    <includeBaseDirectory>true</includeBaseDirectory>
+
+    <!-- ── 단일 파일 포함 ──────────────────────────────────────────────────── -->
+    <files>
+
+        <!--
+          Fat JAR → app.jar 로 이름 변경
+          Spring Boot 외부 설정 원칙: app.jar 옆 config/application.yml 이
+          JAR 내부 설정보다 자동으로 우선 적용됨
+        -->
+        <file>
+            <source>target/${project.artifactId}-${project.version}.jar</source>
+            <destName>app.jar</destName>
+            <outputDirectory>/</outputDirectory>
+        </file>
+
+        <!-- 고객사 전달용 설치 가이드 -->
+        <file>
+            <source>deploy/onpremise/INSTALL.md</source>
+            <destName>INSTALL.md</destName>
+            <outputDirectory>/</outputDirectory>
+        </file>
+
+    </files>
+
+    <!-- ── 디렉터리 단위 포함 ─────────────────────────────────────────────── -->
+    <fileSets>
+
+        <!--
+          고객사용 설정 파일 템플릿
+          DB 접속 정보(url/username/password), 서버 포트 등을
+          고객이 직접 편집하거나 install.sh/install.bat 이 자동으로 채워줌
+        -->
+        <fileSet>
+            <directory>deploy/onpremise/config</directory>
+            <outputDirectory>config</outputDirectory>
+            <includes>
+                <include>**/*.yml</include>
+            </includes>
+        </fileSet>
+
+        <!--
+          MyBatis SQL 매퍼 XML 파일
+          고객이 SQL 수정이 필요한 경우 이 폴더의 파일을 편집 후 앱만 재시작하면 반영됨
+          (JAR 재빌드 불필요 — config/application.yml 의 file:./mapper/ 경로 참조)
+        -->
+        <fileSet>
+            <directory>src/main/resources/static/mybatis/mapper</directory>
+            <outputDirectory>mapper</outputDirectory>
+            <includes>
+                <include>**/*.xml</include>
+            </includes>
+        </fileSet>
+
+        <!--
+          Linux 쉘 스크립트 — 실행 권한(0755) 자동 설정
+          ZIP 해제 시 chmod +x 없이도 바로 실행 가능
+        -->
+        <fileSet>
+            <directory>deploy/onpremise/bin</directory>
+            <outputDirectory>bin</outputDirectory>
+            <includes>
+                <include>*.sh</include>
+            </includes>
+            <fileMode>0755</fileMode>
+        </fileSet>
+
+        <!-- Windows 배치 스크립트 -->
+        <fileSet>
+            <directory>deploy/onpremise/bin</directory>
+            <outputDirectory>bin</outputDirectory>
+            <includes>
+                <include>*.bat</include>
+            </includes>
+        </fileSet>
+
+    </fileSets>
+
+</assembly>

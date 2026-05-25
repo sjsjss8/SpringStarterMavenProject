@@ -608,12 +608,14 @@ PS1EOF
 
                     # ── 실행 스크립트 복사 ────────────────────────────────────
                     echo "── 시작/종료/설치 스크립트 복사"
-                    cp deploy/onpremise/bin/start.sh    "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/stop.sh     "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/install.sh  "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/start.bat   "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/stop.bat    "\$PKG_DIR/bin/"
-                    cp deploy/onpremise/bin/install.bat "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/install.sh   "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/start.sh     "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/stop.sh      "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/uninstall.sh "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/install.bat   "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/start.bat     "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/stop.bat      "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/uninstall.bat "\$PKG_DIR/bin/"
                     chmod +x "\$PKG_DIR/bin/"*.sh
 
                     # ── 설치 가이드 복사 ──────────────────────────────────────
