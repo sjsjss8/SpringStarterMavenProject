@@ -35,7 +35,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>경로: {@code /api/v2/members/**}</p>
  */
-@RestController
+@RestController("memberApiControllerV2")    // ← 명시적 빈 이름 (v1 과 클래스명이 같으므로 충돌 방지)
 @RequiredArgsConstructor
 @RequestMapping("/api/v2/members")
 public class MemberApiController {
