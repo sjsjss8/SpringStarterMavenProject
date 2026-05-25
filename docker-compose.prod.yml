@@ -43,7 +43,7 @@ services:
                                     # 로그 레벨 ERROR, 포트 80, actuator 제한 노출 등
       DB_HOST:     ${DB_HOST:-mariadb}   # 기본값 mariadb (같은 Compose 네트워크 내 DB 서비스)
                                          # 외부 DB(RDS 등) 사용 시 해당 호스트 주소로 변경
-      DB_PORT:     ${DB_PORT:-3306}
+      DB_PORT:     ${DB_PORT:-50002}
       DB_NAME:     ${DB_NAME:-SJSJSS}
       DB_USERNAME: ${DB_USERNAME}        # 원격 서버 .env 파일에서 주입
       DB_PASSWORD: ${DB_PASSWORD}        # 원격 서버 .env 파일에서 주입

@@ -63,7 +63,7 @@ DDD-based layered architecture. Packages map directly to layers:
 
 ## Profiles & Database
 
-- **local** (default): MariaDB at `localhost:3306/SJSJSS`, port 8081, SQL logging to stdout
+- **local** (default): MariaDB at `localhost:50002/SJSJSS`, port 8081, SQL logging to stdout
 - **dev**: Uses env vars `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
 - **prod**: Same env vars; port 80, logs to `/var/log/application.log`
 - **test**: H2 in-memory DB with MariaDB mode, JPA `ddl-auto=create-drop`

@@ -261,7 +261,7 @@ public class MemberServiceImpl implements MemberService {
 ### 사전 요구사항
 
 - JDK 17 이상 설치 및 `JAVA_HOME` 설정
-- MariaDB 10.6 이상 (기본 포트 `50002` 또는 `3306`)
+- MariaDB 10.6 이상 (이 환경의 호스트 포트 `50002`)
 - Git
 
 ### Step 1 — DB 초기화
@@ -292,7 +292,7 @@ cp .env.example .env        # Mac/Linux
 ```dotenv
 TAG=latest
 DB_HOST=localhost
-DB_PORT=50002          # 로컬 MariaDB 포트 (기본 3306이면 3306으로 변경)
+DB_PORT=50002          # 이 환경의 MariaDB 호스트 포트
 DB_NAME=SJSJSS
 DB_ROOT_PASSWORD=실제_루트_비밀번호
 DB_USERNAME=실제_계정명
@@ -362,7 +362,7 @@ spring:
 
 ```yaml
 # DB 정보: 환경변수로 주입 (Jenkins Credentials, K8s Secret, docker-compose env 등)
-spring.datasource.url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
+spring.datasource.url: jdbc:mariadb://${DB_HOST}:${DB_PORT:50002}/${DB_NAME}
 logging.file.name: /var/log/application.log   # ← 서버 로그 경로
 server.port: 80                                # ← 운영 포트
 ```
@@ -627,7 +627,7 @@ image:
 config:
   SPRING_PROFILES_ACTIVE: "prod"
   DB_HOST: "prod-db.internal"      # ← 운영 DB 호스트
-  DB_PORT: "3306"
+  DB_PORT: "50002"
   DB_NAME: "SJSJSS"
 
 # secret 은 Git 평문 커밋 금지 — Sealed Secrets / External Secrets / Vault 사용 권장

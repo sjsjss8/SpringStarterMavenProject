@@ -20,7 +20,7 @@
 spring:
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
+    url: jdbc:mariadb://${DB_HOST}:${DB_PORT:50002}/${DB_NAME}
     # 운영 환경: DB_HOST, DB_NAME 기본값 없음 → 미설정 시 기동 실패 (의도적)
     # 실수로 운영 서버가 잘못된 DB에 연결되는 것을 방지
     username: ${DB_USERNAME}  # K8s Secret 또는 Docker 환경변수로 주입

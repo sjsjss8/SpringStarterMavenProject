@@ -69,7 +69,7 @@ probes:
 config:
   SPRING_PROFILES_ACTIVE: "dev"
   DB_HOST: "your-dev-db-host"
-  DB_PORT: "3306"
+  DB_PORT: "50002"
   DB_NAME: "SJSJSS"
 
 # ── 민감 정보 (Secret 에 저장) ──────────────────────────────────────────────

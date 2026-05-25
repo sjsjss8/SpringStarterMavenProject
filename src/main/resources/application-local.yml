@@ -23,7 +23,7 @@ spring:
     # JDBC 연결 URL 형식: jdbc:mariadb://호스트:포트/데이터베이스명
     # ${변수:기본값}: 환경변수 없을 때 기본값 사용
     #   DB_HOST → 없으면 localhost
-    #   DB_PORT → 없으면 50002 (로컬 MariaDB 포트. 표준 3306과 다른 경우 .env에서 변경)
+    #   DB_PORT → 없으면 50002 (이 환경의 로컬 MariaDB 호스트 포트)
     #   DB_NAME → 없으면 SJSJSS
     username: ${DB_USERNAME}  # .env 파일의 DB_USERNAME. 기본값 없음 → 없으면 기동 실패 (의도적)
     password: ${DB_PASSWORD}  # .env 파일의 DB_PASSWORD. 기본값 없음 → 없으면 기동 실패 (의도적)
