@@ -28,7 +28,7 @@ services:
   # ── Spring Boot 앱 ──────────────────────────────────────────────────────────
   app:
     build: .  # 이 디렉터리의 Dockerfile로 이미지를 직접 빌드 (레지스트리 없이 로컬 개발 가능)
-    image: your-dockerhub-id/spring-starter-maven:${TAG:-latest}  # 빌드된 이미지에 붙일 이름과 태그
+    image: sangjinyoo/spring-starter-maven:${TAG:-latest}  # 빌드된 이미지에 붙일 이름과 태그
     # build와 image를 함께 쓰면: Dockerfile로 빌드하고 image 이름으로 태깅
     # → "docker-compose push"로 Docker Hub에 올릴 때 이 이름으로 올라감
 

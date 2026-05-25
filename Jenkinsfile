@@ -68,7 +68,7 @@ pipeline {
     // ── 공통 환경변수 ─────────────────────────────────────────────────────────
     environment {
         APP_NAME      = 'spring-starter-maven'
-        DOCKER_IMAGE  = "your-dockerhub-id/${APP_NAME}"   // ← DockerHub ID로 변경
+        DOCKER_IMAGE  = "sangjinyoo/${APP_NAME}"          // Docker Hub: sangjinyoo
         DOCKER_TAG    = "${env.BUILD_NUMBER}"
 
         // [server-jar / server-jar-zip / server-blue-green / server-docker] 원격 서버 정보
@@ -80,7 +80,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
 
         // [server-k8s] GitOps 워크플로우 — Helm values 파일을 Git 에 푸시하면 ArgoCD 가 sync
-        GIT_REPO_URL = 'https://github.com/your-org/SpringbootProject.git'   // ← 실제 Git 저장소 URL
+        GIT_REPO_URL = 'https://github.com/sjsjss8/SpringStarterMavenProject.git'   // GitHub: sjsjss8
         GIT_BRANCH   = 'main'                                                // 푸시할 브랜치
 
         // [server-blue-green] Blue / Green 포트

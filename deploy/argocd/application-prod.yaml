@@ -33,7 +33,7 @@ spec:
 
   # ── 소스: Git 의 Helm Chart 위치 ─────────────────────────────────────────
   source:
-    repoURL: https://github.com/your-org/SpringbootProject.git   # ← 실제 Git 저장소
+    repoURL: https://github.com/sjsjss8/SpringStarterMavenProject.git   # GitHub: sjsjss8
     targetRevision: main              # 추적할 브랜치 / 태그
     path: deploy/helm/spring-app      # Chart.yaml 의 디렉터리
     helm:

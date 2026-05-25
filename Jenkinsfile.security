@@ -30,7 +30,7 @@ pipeline {
 
     environment {
         APP_NAME     = 'spring-starter-maven'
-        DOCKER_IMAGE = "your-dockerhub-id/${APP_NAME}"   // 메인 Jenkinsfile 과 동일하게 설정
+        DOCKER_IMAGE = "sangjinyoo/${APP_NAME}"          // 메인 Jenkinsfile 과 동일
     }
 
     tools {

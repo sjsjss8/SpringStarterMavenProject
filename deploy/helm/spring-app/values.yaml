@@ -20,7 +20,7 @@ replicaCount: 2
 
 # ── 컨테이너 이미지 ─────────────────────────────────────────────────────────
 image:
-  repository: your-dockerhub-id/spring-starter-maven   # ← DockerHub ID 변경
+  repository: sangjinyoo/spring-starter-maven          # Docker Hub: sangjinyoo
   tag: ""                     # Chart.yaml 의 appVersion 사용 (Jenkins 가 --set image.tag=BUILD_NUMBER 로 override)
   pullPolicy: Always
 
