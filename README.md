@@ -1,1103 +1,704 @@
-1. 현대적인 개발 아키텍처
-[Frontend]
- - SPA + REST API
-  : React/Vue.js/Angular
-  : API 통신
-  : 클라이언트 사이드 렌더링
-  
- * 최근에는 JSP가 레거시 취급된다. 그 이유는 다음과 같다.
-   - JSP가 처음 요청되거나 변경되면 서블릿으로 변환되고 컴파일 된 후 실행되는 과정을 거쳐야 하기 때문에 레이턴시가 발생하는 문제
-   - 또한 JSP를 사용하면 스파게티 코드가 될 수 있는 상황에 놓여진다.
-   - 특히나 최근에 많이 사용하는 스프링 부트의 경우엔 내장 톰캣을 사용하는 실행가능한 JAR파일 빌드할 경우 JSP를 인식할 수 없다.
-   그렇기 때문에 굳이 SPA 프레임워크를 사용하지 않더라도 JSP대신 HTML, CSS, JS를 분리해서 사용하는것이 최신 트렌드이다.
-  
-[Backend]
- - Spring Boot
-  : REST API 제공
-  : JSON 응답
-  : 비즈니스 로직 처리
-  
-2. Spring 기반의 웹 서버 애플리케이션 구조
-* 애플리케이션의 역할과 책임을 논리적으로 분리하기 위해 계층을 나눔
+# SpringStarterMavenProject
 
-2.1 3계층 구조(다시 작성해야 할듯..)
-[Presentation Layer] // 외부 요청을 받고 응답을 반환하는 계층. 즉 외부에 '보여지는(Presentation)' 계층
- - Controller > @RestController, @Controller, @RequestMapping, @Autowired..
- - DTO (Data Transfer Object) > @Getter, @Setter, @Builder, @NoArgsConstructor, @AllArgsConstructor, @ToString..
- - Validator > @Component..
- - ExceptionHandler > @RestControllerAdvice, @ExceptionHandler(Exception.class)..
- - Filter > @Component..
- - Interceptor > @Component..
- 
-[Business Layer] // 실제 비즈니스 로직을 처리하는 계층
- - Service
-  • Service Interface
-  • Service Implementation > @Service, @Transactional, @RequiredArgsConstructor, @Autowired..
- - Domain Model > @Getter, @Setter, @Builder, @NoArgsConstructor, @AllArgsConstructor, @ToString..
- - Exception
- - Event > @Getter, @Setter, @Builder, @NoArgsConstructor, @AllArgsConstructor, @ToString..
- 
-[Data Access Layer 또는 Persistence Layer] // 데이터베이스와의 통신을 담당하는 계층
- - Repository(JPA 사용시) > @Repository..
-  • Repository Interface
-  • Repository Implementation (필요한 경우)
- - QueryDSL(JPA 사용시)
- - Repository/Mapper(Mybatis 사용시)
-  • Repository/Mapper Interface > @Mapper..
-  • Repository/Mapper Implementation(XML Mapper)
- - DAO
-  • DAO Interface > @Repository, @Mapper, @RequiredArgsConstructor..
-  • DAO Implementation
- - Entity > @Entity, @Table(name = "Identity"), @Getter, @Setter, @Id, @GeneratedValue, @Column..
- 
- * JPA를 사용할 때는 일반적으로 Repository Interface, Repository Implementation, DAO를 사용하는것이 표준적인 방법입니다.
- * MyBatis를 사용할 때는 일반적으로 DAO개념과 같은 Mapper를 사용하는 것이 표준적인 방법입니다.
-   하지만 Repository 패턴을 적용하고 싶다면 Mapper를 감싸는 Repository를 만들 수 있습니다.
+Spring Boot 3.4.2 기반의 DDD 레이어드 아키텍처 스타터 프로젝트.  
+로컬 개발부터 SaaS(Docker/K8s), B2B 고객사 설치형까지 총 **8가지 배포 방식**을 Jenkins Pipeline으로 지원한다.
 
-++[Infrastructure Layer] //애플리케이션 전반에서 필요한 환경 및 설정을 제공
- - Configuration(애플리케이션의 각종 설정을 담당) > @Configuration, @EnableWebMvc, @ComponentScan, @PropertySource, @Value, @Bean...
-  • WebMvcConfig (Spring MVC 관련 설정 (인터셉터, 리소스 핸들러 등))
-  • SecurityConfig (보안 관련 설정 (인증, 인가, 보안 필터 등))
-  • DatabaseConfig (데이터베이스 연결, JPA 설정 등)
-  • RedisConfig (Redis 캐시 서버 설정)
-  • SwaggerConfig (API 문서 자동화 설정)
- - Security(애플리케이션의 보안 관련 기능 담당) > @EnableWebSecurity, @EnableGlobalMethodSecurity, @Secured, @PreAuthorize...
-  • SecurityConfig (Spring Security 기본 설정)
-  • JwtTokenProvider (JWT 토큰 생성, 검증, 관리)
-  ...
- - Logging(애플리케이션의 로그 처리 담당) > @Aspect, @Pointcut, @Around, @Before, @After...
-  • LoggingAspect (AOP를 사용한 메서드 실행 로깅)
-  • CustomLogAppender (로그 저장 방식 커스터마이징)
-  • LogInterceptor (HTTP 요청/응답 로깅)
-  ...
- - Transaction(데이터베이스 트랜잭션 처리 담당) > @EnableTransactionManagement, @Transactional...
-  • TransactionConfig (트랜잭션 매니저 설정)
-  • CustomTransactionManager (트랜잭션 처리 방식 커스터마이징)
- - Utils/Helpers(애플리케이션 전반에서 사용되는 공통 유틸리티 기능 제공)  >  @Component, @Slf4j...
-  • DateUtils (날짜 관련 유틸)
-  • StringUtils (문자열 처리 유틸)
-  • FileUtils (파일 처리 유틸)
-  • EncryptionUtils (암호화 유틸)
-  • ValidationUtils (데이터 검증 유틸)
-  • Constants (상수)
-  • Enums (열거형)
-  • Response Wrapper (API 응답 형식 표준화)
-  ...
+---
 
-* 3계층의 흐름도
-[Client] → HTTP Request
+## 목차
+
+1. [기술 스택](#1-기술-스택)
+2. [프로젝트 구조](#2-프로젝트-구조)
+3. [아키텍처](#3-아키텍처)
+4. [로컬 개발 환경 설정](#4-로컬-개발-환경-설정)
+5. [설정 파일 구조](#5-설정-파일-구조)
+6. [빌드 & 테스트](#6-빌드--테스트)
+7. [Jenkins 배포 파이프라인](#7-jenkins-배포-파이프라인)
+8. [배포 방법별 상세 가이드](#8-배포-방법별-상세-가이드)
+9. [B2B 고객사 설치형 배포](#9-b2b-고객사-설치형-배포)
+10. [API 문서 (Swagger)](#10-api-문서-swagger)
+11. [코드 컨벤션](#11-코드-컨벤션)
+
+---
+
+## 1. 기술 스택
+
+| 분류 | 기술 |
+|---|---|
+| Language | Java 17 |
+| Framework | Spring Boot 3.4.2 |
+| Build | Apache Maven (Maven Wrapper 포함) |
+| Database | MariaDB 10.6+ (운영), H2 In-Memory (테스트) |
+| ORM | MyBatis 3.0.3 |
+| View | Thymeleaf + HTML/CSS/JS (Vanilla) |
+| API 문서 | springdoc-openapi (Swagger UI) |
+| 코드 생성 | Lombok, MapStruct |
+| 보안 | Spring Security + JWT (scaffold 준비, 미활성화) |
+| 캐시 | Redis (scaffold 준비, 미활성화) |
+| CI/CD | Jenkins Declarative Pipeline |
+| 컨테이너 | Docker, docker-compose |
+| 오케스트레이션 | Kubernetes |
+| 정적 분석 | SpotBugs + FindSecBugs, Checkstyle |
+| 보안 스캔 | OWASP Dependency Check, Trivy |
+
+---
+
+## 2. 프로젝트 구조
+
+```
+SpringbootProject/
+├── src/
+│   ├── main/
+│   │   ├── java/com/example/demo/
+│   │   │   ├── ProjectApplication.java          # 앱 시작점
+│   │   │   ├── interfaces/                      # ① 표현 계층
+│   │   │   │   ├── api/v1/{domain}/             #   REST API 컨트롤러
+│   │   │   │   └── web/{domain}/                #   Thymeleaf MVC 컨트롤러
+│   │   │   ├── application/                     # ② 응용 계층
+│   │   │   │   └── {domain}/
+│   │   │   │       ├── dto/request/             #   요청 DTO
+│   │   │   │       ├── dto/response/            #   응답 DTO
+│   │   │   │       └── mapper/                  #   MapStruct Entity↔DTO 변환
+│   │   │   ├── domain/                          # ③ 도메인 계층
+│   │   │   │   └── {domain}/
+│   │   │   │       ├── entity/                  #   엔티티 (DB 테이블 매핑)
+│   │   │   │       ├── service/                 #   서비스 인터페이스
+│   │   │   │       ├── service/impl/            #   서비스 구현체
+│   │   │   │       └── repository/mybatis/      #   MyBatis @Mapper 인터페이스
+│   │   │   ├── infrastructure/                  # ④ 인프라 계층
+│   │   │   │   ├── db/mariadb/                  #   DB 설정 (scaffold)
+│   │   │   │   ├── db/redis/                    #   Redis 설정 (scaffold)
+│   │   │   │   ├── security/jwt/                #   JWT 보안 (scaffold)
+│   │   │   │   ├── security/oauth2/             #   OAuth2 (scaffold)
+│   │   │   │   ├── mail/                        #   메일 발송 (scaffold)
+│   │   │   │   └── external/                    #   외부 API 연동 (scaffold)
+│   │   │   └── global/                          # ⑤ 공통 횡단 관심사
+│   │   │       ├── common/api/ApiResponse.java  #   표준 API 응답 래퍼
+│   │   │       ├── error/ErrorCode.java         #   에러 코드 enum
+│   │   │       ├── error/GlobalExceptionHandler #   전역 예외 처리
+│   │   │       └── error/exception/             #   비즈니스 예외 클래스
+│   │   └── resources/
+│   │       ├── application.yml                  # 공통 설정
+│   │       ├── application-local.yml            # 로컬 개발 환경
+│   │       ├── application-dev.yml              # 개발 서버
+│   │       ├── application-prod.yml             # 운영 서버
+│   │       ├── static/
+│   │       │   ├── css/, js/                    # 정적 리소스
+│   │       │   └── mybatis/mapper/**/*.xml      # MyBatis SQL 매퍼
+│   │       └── templates/                       # Thymeleaf HTML 템플릿
+│   └── test/
+│       └── resources/application-test.yml       # 테스트 환경 (H2)
+│
+├── deploy/                                      # 배포 관련 설정 모음
+│   ├── k8s/                                     #   Kubernetes 배포 매니페스트
+│   │   ├── deployment.yaml
+│   │   ├── service.yaml
+│   │   ├── configmap.yaml                       #   비민감 설정 (DB_HOST 등)
+│   │   └── secret.yaml                          #   민감 정보 (DB_PASSWORD 등)
+│   └── onpremise/                               #   B2B 고객사 설치형 패키지 소스
+│       ├── config/application.yml               #   고객사용 설정 템플릿
+│       ├── bin/start.sh, stop.sh               #   Linux 시작/종료 스크립트
+│       ├── bin/start.bat, stop.bat             #   Windows 시작/종료 스크립트
+│       ├── docker-compose.yml                   #   Docker 방식 고객사 설치용
+│       └── INSTALL.md                           #   고객사 전달용 설치 가이드
+│
+├── config/                                      # 정적 분석 도구 설정
+│   ├── owasp-suppressions.xml                   #   OWASP CVE 오탐 예외 목록
+│   └── spotbugs-exclude.xml                     #   SpotBugs 오탐 예외 목록
+│
+├── Dockerfile                                   # 멀티스테이지 이미지 빌드 (루트 필수)
+├── docker-compose.yml                           # 로컬 Docker 개발용 (루트 관례)
+├── docker-compose.prod.yml                      # 운영 서버 docker-compose
+├── Jenkinsfile                                  # CI/CD 파이프라인 (루트 필수)
+├── pom.xml                                      # Maven 의존성 및 플러그인
+├── .env.example                                 # 환경변수 템플릿 (Git 추적)
+├── .editorconfig                                # 에디터 코드 스타일 통일
+└── .gitignore
+```
+
+---
+
+## 3. 아키텍처
+
+### DDD 기반 레이어드 아키텍처
+
+```
+[HTTP 요청]
     ↓
-[Presentation Layer] (Controller)
+interfaces/          ← Controller: 요청 수신, 응답 반환만 담당
     ↓
-[Business Layer] (Service)
+application/         ← DTO 변환(MapStruct), 유스케이스 조합
     ↓
-[Data Access Layer] (Repository or DAO)
+domain/              ← 핵심 비즈니스 로직, Service, Entity, Repository 인터페이스
     ↓
-[Database]
-    ↓
-[Persistence Layer] (Repository or DAO)
-    ↓
-[Business Layer] (Service)
-    ↓
-[Presentation Layer] (Controller)
-    ↓
-[Client] ← HTTP Response
-
-2.2 DDD 기반 계층형 구조
-[Interfaces Layer]
-
-[Application Layer]
-
-[Domain Layer]
-
-[Infrastructure Layer]
-
-
-4. SpringStarterMavenProject 패키지 구조
-백엔드는 도메인형 아키텍처를 사용하고 Spring Boot, MyBatis를 사용해서 구현했다.
-프론트엔드는 계층형 아키텍처를 사용하고 html, css, javascript, axios를 사용해서 구현했다.(차후에 Next.js로 바꿔볼 예정)
-빌드 툴은 maven을 사용했다.(차후에 gradle로 바꿔볼 예정)
-형상관리는 github을 사용했다.
-    
-SpringStarterMavenProject/
-├── .git/                           # Git 저장소
-├── .gitignore                      # Git 제외 설정
-├── README.md                       # 프로젝트 설명
-├── pom.xml                         # Maven 설정
-└── src/
-    ├── main/
-    │   ├── java/								 # 자바 소스 코드파일. 빌드 시 .class 파일이 됨
-    │   │   └── com/example/demo/
-    │   │       ├── ProjectApplication.java      # 메인 클래스. 스프링 부트 시작점
-    │   │       ├── global/                      # 전역 컴포넌트
-    │   │       │   ├── config/                  # 프로젝트 설정 관련 클래스들(보안, 데이터베이스 등 각종 설정)
-    │   │       │   │   ├── WebConfig.java       # 웹 설정
-    │   │       │   │   ├── SecurityConfig.java  # 보안 설정
-    │   │       │   │   └── MybatisConfig.java   # MyBatis 설정
-    │   │       │   ├── error/                   # 예외 처리
-    │   │       │   │   ├── GlobalExceptionHandler.java
-    │   │       │   │   ├── ErrorCode.java       # 에러 코드 enum
-    │   │       │   │   └── ErrorResponse.java   # 에러 응답 객체
-    │   │       │   └── common/                  # 공통
-    │   │       │       ├── util/                # 유틸리티
-    │   │       │       │   ├── DateUtils.java
-    │   │       │       │   └── StringUtils.java
-    │   │       │       └── model/               # 공통 모델
-    │   │       │           ├── BaseEntity.java  # 기본 엔티티
-    │   │       │           └── BaseResponse.java # 기본 응답
-    │   │       └── domain/                      # 도메인
-    │   │           ├── member/                  # 회원 도메인
-    │   │           │   ├── controller/          # 컨트롤러 계층
-    │   │           │   │   ├── MemberController.java    # 뷰 컨트롤러
-    │   │           │   │   └── MemberApiController.java # API 컨트롤러
-    │   │           │   ├── service/             # 실제 비즈니스 로직 구현
-    │   │           │   │   ├── MemberService.java       # 인터페이스
-    │   │           │   │   └── impl/
-    │   │           │   │       └── MemberServiceImpl.java
-    │   │           │   ├── mapper/              # 매퍼 계층
-    │   │           │   │   └── MemberMapper.java
-    │   │           │   ├── dto/                 # API 요청/응답에 사용되는 데이터 객체
-    │   │           │   │   ├── request/         # 요청 DTO
-    │   │           │   │   │   └── MemberRequestDto.java
-    │   │           │   │   └── response/        # 응답 DTO
-    │   │           │   │       └── MemberResponseDto.java
-    │   │           │   └── model/               # 데이터베이스 테이블과 매핑되는 클래스
-    │   │           │       └── Member.java
-    │   │           └── board/                   # 게시판 도메인
-    │   └── resources/							# 자바 소스 외의 모든 리소스 파일(XML, properties, yml, html, css, js 등). 빌드 시 그대로 클래스패스에 복사됨
-    │       ├── static/                          # 정적 리소스
-    │       │   ├── assets/                      # 미디어 파일
-    │       │   │   ├── images/                  # 이미지
-    │       │   │   │   ├── common/             # 공통 이미지
-    │       │   │   │   └── pages/              # 도메인별 이미지
-    │       │   │   └── fonts/                   # 폰트
-    │       │   ├── css/                         # 스타일시트
-    │       │   │   ├── common/                  # 공통 CSS
-    │       │   │   │   ├── reset.css           # 초기화
-    │       │   │   │   └── layout.css          # 레이아웃
-    │       │   │   └── pages/                   # 도메인별 CSS
-    │       │   │       ├── member/
-    │       │   │       │   └── member.css
-    │       │   │       └── board/
-    │       │   │           └── board.css
-    │       │   └── js/                          # 자바스크립트
-    │       │       ├── lib/                     # 외부 JS 라이브러리
-    │       │       │   ├── jquery.min.js
-    │       │       │   └── jquery-ui.min.js
-    │       │       ├── common/                  # 공통 JS
-    │       │       │   ├── common.js           # 공통 유틸
-    │       │       │   └── api.js              # API 통신
-    │       │       └── pages/                   # 도메인별 JS
-    │       │           ├── member/
-    │       │           │   └── member.js
-    │       │           └── board/
-    │       │               └── board.js
-    │       ├── templates/                       # URL로 접근 불가능해야하는 리소스 파일들. HTML파일을 직접 접근하는것은 인증/인가를 건너뛰는 등 보안 취약점이 있으므로 반드시 서버사이드를 통한 후 접근하도록 해야한다.
-    │       │   ├── layout/                      # 재사용 가능한 페이지 구조. 공통 레이아웃 (헤더, 푸터)
-    │       │   │   ├── base.html              	 # 기본 템플릿
-    │       │   │   ├── header.html
-    │       │   │   └── footer.html
-    │       │   └── pages/                      # 도메인별 HTML. 실제 서비스 페이지들
-    │       │       ├── member/
-    │       │       │   └── member.html
-    │       │       └── board/
-    │       │           └── board.html
-    │       └── mybatis/                        # MyBatis
-    │       │   ├── config/
-    │       │   │   └── mybatis-config.xml      # MyBatis 설정
-    │       │   └── mapper/                     # SQL 매퍼
-    │       │       ├── member/
-    │       │       │   └── MemberMapper.xml
-    │       │       └── board/
-    │       │           └── BoardMapper.xml
-    │       └── application.yml				: 스프링 부트 설정 (DB, 서버 등)   
-    └── test/                                   # 테스트
-        └── java/
-            └── com/example/project/
-                └── domain/
-                    ├── member/
-                    │   ├── controller/
-                    │   ├── service/
-                    │   └── mapper/
-                    └── board/
-
-
-또한 Spring Boot 프로젝트에서는 전통적인 /WEB-INF 구조를 사용하지 않는다.
-기존 웹 프로젝트 구조:
- src/main/webapp/WEB-INF
-     ├── classes/
-     ├── lib/
-     ├── views/
-     └── web.xml(설정 파일)
-
-Spring Boot 구조:
- src/main/resources/
-     ├── static/      (정적 리소스)
-     └── templates/   (동적 뷰 템플릿)
-     └── application.yml/properties(설정 파일)
-     
-5. RESTful API 규칙
-5.1 기본 URL 구조
-## 형식 : 도메인/api/API 버전/리소스
-# 예시 : https://api.example.com/api/v1/resources
-
-## API 버전은 다음과 같이 관리할 수 있다.
-# URL(권장)
-/v1/
-/v2/
-
-# HTTP 헤더
-Accept: application/vnd.example.v1+json
-Accept: application/vnd.example.v2+json
-
-## 리소스는 다음과 같은 기준으로 유연하게 나눈다.
-# 비즈니스 도메인(업무 영역) 기준
-# 예시
-/products          : 상품 관련
-/orders            : 주문 관련
-/users             : 회원 관련
-/carts             : 장바구니 관련
-
-# 기능/서비스 기준
-# 예시
-/auth              : 인증 관련
-/profiles          : 프로필 관련
-/preferences       : 설정 관련
-
-# 데이터 관계 기준
-# 예시
-/posts/{id}/comments   : 게시글의 댓글
-/posts/{id}/likes      : 게시글의 좋아요
-
-5.2 리소스 명명 규칙
-# 기본 규칙
-/members                 							# 일관된 복수형 사용
-/members/{id}            							# 식별자로 개별 리소스 접근
-/members/{id}/orders     							# 관계 표현 시에는 계층 구조(ex:특정 사용자의 주문목록)
-/members/{memberId}/orders/{orderId}/items 			# 중첩된 리소스 표현
-
-# 정렬, 필터링, 검색 조건, 페이징 처리 처럼 선택적인 값 사용 시 Query Parameter 사용
-/members?sort=id,desc&sort=name,asc																 # 정렬
-/members?role=admin																				 # 필터링
-/members/search?searchType=name&keyword=Yoo														 # 검색 조건
-/members?page=1&size=10																			 # 페이징 처리
-/members/search?searchType=name&keyword=Yoo&sort=id,desc&sort=name,asc&role=admin&page=1&size=10 # 복합 조건(정렬 + 필터링 + 검색 + 페이징)
-
-# 나쁜 예
-/member/{id}             			# 단수형 사용
-/members/{id}/getOrders   			# 불필요한 동사 사용 지양
-/members/search/searchType/name		# Query Parameter를 경로에 포함
-
-5.3 HTTP 메서드 사용
-GET     /members         # 사용자 목록 조회
-GET     /members/{id}    # 특정 사용자 조회
-POST    /members         # 새로운 사용자 생성
-PUT     /members/{id}    # 사용자 정보 전체 수정
-PATCH   /members/{id}    # 사용자 정보 일부 수정
-DELETE  /members/{id}    # 사용자 삭제
-
-5.4 HTTP Header 사용
-# 요청 헤더(필수)
-Content-Type: application/json      # POST, PUT, PATCH 요청 시에만 필수
-Accept: application/json            # 클라이언트가 받고자 하는 응답 형식 명시
-
-# 응답 헤더(필수)
-Content-Type: application/json; charset=UTF-8    # 응답 본문의 타입과 인코딩
-
-# 요청 헤더(선택)
-Authorization: Bearer {token}       # 클라이언트가 서버에 인증 정보 전달
-Cache-Control: no-cache             # 클라이언트가 캐시 정책 요청
-If-None-Match: "{etag}"             # 클라이언트가 가진 리소스의 ETag 전달
-Origin: https://example.com         # 요청하는 출처 도메인 정보
-X-Request-ID: abc-123               # 클라이언트가 생성한 요청 추적 ID
-Accept-Language: ko-KR              # 선호 언어
-...
-
-# 응답 헤더(선택)
-Cache-Control: no-cache           # 서버가 클라이언트에게 캐시 정책 전달
-ETag: "{hash}"                    # 서버가 리소스의 버전 정보 전달
-Access-Control-Allow-Origin: *    # 허용된 도메인 목록
-Access-Control-Allow-Methods: GET, POST, PUT, DELETE  # 허용된 HTTP 메소드
-X-Request-ID: abc-123            # 요청의 ID를 그대로 응답에 포함
-X-API-Version: v1                # 서버의 API 버전 정보
-...
-
-5.5 응답 코드
-# 성공 응답
-200 OK           // 요청 성공
-201 Created      // 리소스 생성 성공
-204 No Content   // 성공했지만 응답 본문 없음 (DELETE 등)
-
-# 클라이언트 오류
-400 Bad Request  // 잘못된 요청
-401 Unauthorized // 인증 필요
-403 Forbidden    // 권한 없음
-404 Not Found    // 리소스 없음
-409 Conflict     // 리소스 충돌
-
-# 서버 오류
-500 Internal Server Error
-503 Service Unavailable
-
-5.6 API 문서화
-Swagger나 Spring Rest Docs 등을 사용해서 API 스펙 문서 필수 작성
-
-* 주의 : RESTful API 규칙은 데이터 호출 API에만 적용함. 화면(View) 호출 API에는 다음과 같이 URL 규칙만 적용
-GET  /members          # 사용자 목록 화면
-GET  /members/new      # 사용자 등록 화면
-GET  /members/{id}     # 사용자 상세 화면
-GET  /members/{id}/edit # 사용자 수정 화면
-
-6. HTTP 응답 메시지(상태 라인, 응답 헤더, 응답 바디) 제어
-스프링에서 RESTful API 요청에 대한 HTTP 응답 메시지 제어는 아래와 같은 방법을 많이 사용한다.
-
-# ResponseEntity 활용 : Spring에서 제공하는 HTTP Response Wrapper로
-HTTP 응답 메시지를 간단하고 유연하게 설정(동적인 설정, 조건부 설정)하는것이 가능하지만
-바디의 본문을 표준화 하진 못함
-
-예시)
-@GetMapping("/{id}")
-public ResponseEntity<MemberResponseDto> findById(@PathVariable Long id, @RequestParam String fileName) {
-    MemberResponseDto memberDto = memberService.findById(id);
-	
-	return ResponseEntity.ok(memberDto)
-			.header("Content-Disposition", "attachment; filename=" + fileName)
-            .contentType(MediaType.APPLICATION_PDF);
-}
-
-
-Response :
-HTTP/1.1 200 OK                                           
-Content-Disposition: attachment; filename=example.pdf
-Content-Type: application/pdf
-
-{
-    "id": 1,
-    "name": "홍길동"
-}  => ResponseDto에 따라 바디 본문이 달라짐
-
-# ApiResponse활용 : 서비스 개발자가 직접 정의한 HTTP Response Wrapper로
-@ResponseStatus와 @ResponseHeader 어노테이션을 통해서 HTTP 응답 메시지(상태 라인, 응답 헤더, 응답 바디)를 간단하게 설정하는것이 가능하고
-바디의 본문을 표준화 할 수 있다.
-그러나 HTTP 응답 메시지를 유연하게 설정(동적인 설정, 조건부 설정)하기 위해선 코드가 복잡해지는 문제가 있음
-
-
-예시)
-@GetMapping("/{id}")
-@ResponseStatus(HttpStatus.OK)
-@ResponseHeader(name = "Content-Disposition", value = "attachment; filename=test.pdf")
-public ApiResponse<MemberDto> findById(@PathVariable Long id, @RequestParam String fileName) {
-	MemberResponseDto memberDto = memberService.findById(id);
-
-    HttpServletResponse response = ((ServletRequestAttributes) RequestContextHolder
-            .getRequestAttributes())
-            .getResponse();
-            
-    // 동적으로 헤더 설정
-    response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
-    response.setContentType("application/pdf");
-	
-    return ApiResponse.success(memberDto);
-}
-
-Response :
-HTTP/1.1 200 OK                                           
-Content-Disposition: attachment; filename=example.pdf
-Content-Type: application/pdf
-
-{
-    "success": true,
-    "data": {
-        "id": 1,
-        "name": "홍길동",
-        "email": "hong@example.com"
-    }
-}
-
-# ResponseEntity + ApiResponse 활용 : ResponseEntity과 ApiResponse를 혼합해서 사용하면 각자의 장점을 활용할 수 있다.
-HTTP 응답 메시지(상태 라인, 응답 헤더, 응답 바디)를 간단하고 유연하게 설정(동적인 설정, 조건부 설정) + 바디의 본문을 표준화
-
-예시2)
-@GetMapping("/{id}")
-public ResponseEntity<ApiResponse<MemberDto>> findById(@PathVariable Long id, @RequestParam String fileName) {
-	MemberResponseDto memberDto = memberService.findById(id);
-
-    return ResponseEntity.ok(ApiResponse.success(memberDto));
-    //또는
-    return ResponseEntity.ok()
-        .header("Content-Disposition", "attachment; filename="+fileName)
-        .contentType(MediaType.APPLICATION_PDF)
-		.body(ApiResponse.success(memberDto));
-}
-
-Response :
-HTTP/1.1 200 OK                                           
-Content-Disposition: attachment; filename=example.pdf
-Content-Type: application/pdf
-
-{
-    "success": true,
-    "data": {
-        "id": 1,
-        "name": "홍길동",
-        "email": "hong@example.com"
-    }
-}
-
-실무에서는 대부분 표준화된 응답 구조를 선호하므로, ApiResponse나 ResponseEntity<ApiResponse>를 많이 사용한다.
-중.소규모 프로젝트 > ApiResponse만으로 충분
-대규모 프로젝트 > ResponseEntity<ApiResponse>로 유연한 제어 가능
-
-7. 실무에서 많이 사용하는 RESTful API 요청/응답 예시
-
-## 등록
-# 등록
-
-HTTP Request Message :
-
-POST /api/v1/members
-Content-Type: application/json
-Accept: application/json
-
-{
-    "name": "홍길동",
-    "email": "hong@test.com"
-}
-
-HTTP Response Message :
-
-HTTP/1.1 201 Created
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "id": 1,
-        "name": "홍길동",
-        "email": "hong@test.com"
-    }
-}
-
-## 조회
-# 조회 (전체 목록)
-
-HTTP Request Message :
-
-GET /api/v1/members
-Accept: application/json
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": [
-        {
-            "id": 1,
-            "name": "홍길동",
-            "email": "hong@test.com"
-        },
-        {
-            "id": 2,
-            "name": "김철수",
-            "email": "kim@test.com"
-        },
-        {
-            "id": 3,
-            "name": "이영희",
-            "email": "lee@test.com"
-        }
-    ]
-}
-
-# 조회 (목록 - 페이징)
-
-HTTP Request Message :
-
-GET /api/v1/members?page=0&size=10
-Accept: application/json
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "items": [
-            {
-                "id": 1,
-                "name": "홍길동",
-                "email": "hong@test.com"
-            },
-            {
-                "id": 2,
-                "name": "김철수",
-                "email": "kim@test.com"
-            }
-        ],
-        "pageInfo": {
-            "page": 0,
-            "size": 10,
-            "totalElements": 42,
-            "totalPages": 5
-        }
-    }
-}
-
-# 조회 (단건)
-
-HTTP Request Message :
-
-GET /api/v1/members/{id}
-Accept: application/json
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "id": 1,
-        "name": "홍길동",
-        "email": "hong@test.com"
-    }
-}
-
-# 검색
-
-HTTP Request Message :
-
-GET /api/v1/members/search?keyword=홍길동
-Accept: application/json
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "content": [
-            {
-                "id": 1,
-                "name": "홍길동",
-                "email": "hong@test.com"
-            }
-        ],
-        "pagination": {
-            "page": 0,
-            "size": 10,
-            "totalElements": 1,
-            "totalPages": 1
-        }
-    }
-}
-
-## 수정
-# 수정 (전체)
-
-HTTP Request Message :
-
-PUT /api/v1/members/{id}
-Content-Type: application/json
-Accept: application/json
-
-{
-    "name": "홍길동2",
-    "email": "hong2@test.com"
-}
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "id": 1,
-        "name": "홍길동2",
-        "email": "hong2@test.com"
-    }
-}
-
-# 수정 (부분)
-
-HTTP Request Message :
-
-PATCH /api/v1/members/{id}
-Content-Type: application/json
-Accept: application/json
-
-{
-    "name": "홍길동3"
-}
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "id": 1,
-        "name": "홍길동3",
-        "email": "hong2@test.com"
-    }
-}
-
-## 삭제
-# 삭제
-
-HTTP Request Message :
-
-DELETE /api/v1/members/{id}
-Accept: application/json
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "id": 1
-    }
-}
-
-## 중첩된 리소스
-# 주문 등록
-
-HTTP Request Message :
-
-POST /api/v1/members/{userId}/orders
-Content-Type: application/json
-Authorization: Bearer {token}
-
-{
-    "items": [
-        {
-            "productId": 1,
-            "quantity": 2
-        }
-    ],
-    "deliveryAddress": {
-        "zipCode": "12345",
-        "address": "서울시 강남구",
-        "detailAddress": "삼성동 123-45"
-    },
-    "paymentMethod": "CARD"
-}
-
-HTTP Response Message :
-
-HTTP/1.1 201 Created
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "orderId": 1,
-        "orderNumber": "ORD-20240125-001",
-        "totalAmount": 50000,
-        "status": "PENDING"
-    }
-}
-
-# 특정주문 조회
-
-HTTP Request Message :
-
-GET /api/v1/members/{userId}/orders/{orderId}
-Accept: application/json
-Authorization: Bearer {token}
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "orderId": 1,
-        "orderNumber": "ORD-20240125-001",
-        "totalAmount": 50000,
-        "status": "PENDING",
-        "items": [
-            {
-                "productId": 1,
-                "productName": "상품A",
-                "quantity": 2,
-                "price": 20000
-            }
-        ],
-        "deliveryAddress": {
-            "zipCode": "12345",
-            "address": "서울시 강남구",
-            "detailAddress": "삼성동 123-45"
-        }
-    }
-}
-
-# 주문 수정
-
-HTTP Request Message :
-
-PATCH /api/v1/members/{userId}/orders/{orderId}
-Content-Type: application/json
-Authorization: Bearer {token}
-
-{
-    "deliveryAddress": {
-        "zipCode": "12345",
-        "address": "서울시 강남구",
-        "detailAddress": "삼성동 999-99"
-    }
-}
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "orderId": 1,
-        "orderNumber": "ORD-20240125-001",
-        "deliveryAddress": {
-            "zipCode": "12345",
-            "address": "서울시 강남구",
-            "detailAddress": "삼성동 999-99"
-        }
-    }
-}
-
-# 주문 삭제
-
-HTTP Request Message :
-
-DELETE /api/v1/members/{userId}/orders/{orderId}
-Authorization: Bearer {token}
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "orderId": 1,
-        "orderNumber": "ORD-20240125-001",
-        "status": "CANCELLED"
-    }
-}
-
-## 기타
-# 활성화/비활성화
-
-HTTP Request Message :
-
-PATCH /api/v1/members/{id}
-Content-Type: application/json
-Accept: application/json
-
-{
-    "status": "ACTIVE",
-    "reason": "회원 복귀"
-}
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "id": 1,
-        "status": "ACTIVE",
-        "reason": "회원 복귀"
-    }
-}
-
-# 통계
-
-HTTP Request Message :
-
-GET /api/v1/members/stats
-Accept: application/json
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "metrics": {
-            "totalMembers": 1000,
-            "activeMembers": 850,
-            "newMembersToday": 10,
-            "averageAge": 32.5
-        },
-        "trends": {
-            "growthRate": "5.2%",
-            "retentionRate": "85%"
-        }
-    }
-}
-
-# 특정 기간 통계
-
-HTTP Request Message :
-
-GET /api/v1/members/stats?startDate=20240101&endDate=20241231
-Accept: application/json
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "period": {
-            "start": "2024-01-01",
-            "end": "2024-12-31"
-        },
-        "metrics": {
-            "totalMembers": 1000,
-            "activeMembers": 850,
-            "newMembers": 150,
-            "averageAge": 32.5
-        }
-    }
-}
-
-# 다중 생성
-
-HTTP Request Message :
-
-POST /api/v1/members/batch
-Content-Type: application/json
-Accept: application/json
-
-{
-    "members": [
-        {
-            "name": "홍길동",
-            "email": "hong@test.com"
-        },
-        {
-            "name": "김철수",
-            "email": "kim@test.com"
-        }
-    ]
-}
-
-HTTP Response Message :
-
-HTTP/1.1 201 Created
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "summary": {
-            "total": 2,
-            "successful": 2,
-            "failed": 0
-        },
-        "results": [
-            {
-                "id": 1,
-                "name": "홍길동",
-                "email": "hong@test.com"
-            },
-            {
-                "id": 2,
-                "name": "김철수",
-                "email": "kim@test.com"
-            }
-        ]
-    }
-}
-
-# 이메일 전송
-
-HTTP Request Message :
-
-POST /api/v1/members/{memberId}/emails
-Content-Type: application/json
-Accept: application/json
-
-{
-    "subject": "메일 제목",
-    "content": "메일 내용",
-    "recipients": ["email@example.com"],
-    "options": {
-        "priority": "normal",
-        "attachments": []
-    }
-}
-
-HTTP Response Message :
-
-HTTP/1.1 202 Accepted
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "id": "email-123456",
-        "status": "QUEUED"
-    }
-}
-
-# 파일 업로드
-
-HTTP Request Message :
-
-POST /api/v1/members/{id}/files
-Content-Type: multipart/form-data
-Accept: application/json
-
-Form-Data:
-- file: (binary)
-- type: "PROFILE"
-- metadata: {
-    "description": "프로필 이미지",
-    "tags": ["profile", "avatar"]
-  }
-
-HTTP Response Message :
-
-HTTP/1.1 201 Created
-Content-Type: application/json
-
-{
-    "success": true,
-    "data": {
-        "id": "file-123456",
-        "url": "https://example.com/images/profile/1.jpg",
-        "fileName": "profile.jpg",
-        "fileSize": 1024000,
-        "mimeType": "image/jpeg",
-        "description": "프로필 이미지",
-        "dimensions": {
-            "width": 800,
-            "height": 600
-        }
-    }
-}
-
-# 파일 다운로드
-
-HTTP Request Message :
-
-GET /api/v1/members/{memberId}/files/{fileId}
-Accept: application/pdf
-
-HTTP Response Message :
-
-HTTP/1.1 200 OK
-Content-Type: application/pdf
-Content-Disposition: attachment; filename="member-document.pdf"
-Content-Length: 58246
-
-[Binary PDF Data...]
-
-# 유효성 검사 실패
-
-HTTP Response Message :
-
-HTTP/1.1 400 Bad Request
-Content-Type: application/json
-
-{
-    "success": false,
-    "error": {
-        "code": "INVALID_INPUT_VALUE",
-        "message": "입력값 검증에 실패했습니다",
-        "errors": [
-            {
-                "field": "email",
-                "value": "invalid-email",
-                "reason": "이메일 형식이 올바르지 않습니다"
-            }
-        ]
-    }
-}
-
-# 권한 없음
-
-HTTP Response Message :
-
-HTTP/1.1 403 Forbidden
-Content-Type: application/json
-
-{
-    "success": false,
-    "error": {
-        "code": "ACCESS_DENIED",
-        "message": "접근이 거부되었습니다",
-        "errors": [
-            {
-                "field": "role",
-                "value": "USER",
-                "reason": "관리자 권한이 필요합니다"
-            }
-        ]
-    }
-}
-
-# 리소스를 찾을 수 없음
-
-HTTP Response Message :
-
-HTTP/1.1 404 Not Found
-Content-Type: application/json
-
-{
-    "success": false,
-    "error": {
-        "code": "RESOURCE_NOT_FOUND",
-        "message": "요청한 리소스를 찾을 수 없습니다",
-        "errors": [
-            {
-                "field": "id",
-                "value": "999",
-                "reason": "해당 ID의 회원이 존재하지 않습니다"
-            }
-        ]
-    }
-}
-
-# 서버 에러
-
-HTTP Response Message :
-
-HTTP/1.1 500 Internal Server Error
-Content-Type: application/json
-
-{
-    "success": false,
-    "error": {
-        "code": "INTERNAL_SERVER_ERROR",
-        "message": "서버 처리 중 오류가 발생했습니다"
-    }
-}
+infrastructure/      ← DB 연결, Redis, Security, 외부 API 등 기술 구현체
+```
+
+### API 응답 표준
+
+모든 REST 엔드포인트는 `ApiResponse<T>`로 감싸서 반환한다.
+
+```java
+// 성공
+return ApiResponse.success(data);          // 200/201
+
+// 실패
+throw new BusinessException(ErrorCode.XXX); // GlobalExceptionHandler가 처리
+```
+
+```json
+// 성공 응답
+{ "success": true, "data": { ... } }
+
+// 실패 응답
+{ "success": false, "error": { "code": "NOT_FOUND", "message": "..." } }
+```
+
+### 이중 컨트롤러 패턴
+
+각 도메인은 두 종류의 컨트롤러를 가진다.
+
+| 위치 | 역할 | 반환 타입 |
+|---|---|---|
+| `interfaces/api/v1/{domain}/` | JSON REST API | `ApiResponse<T>` |
+| `interfaces/web/{domain}/` | Thymeleaf 페이지 렌더링 | `String` (뷰 이름) |
+
+---
+
+## 4. 로컬 개발 환경 설정
+
+### 사전 요구사항
+
+- JDK 17 이상 설치 및 `JAVA_HOME` 설정
+- MariaDB 10.6 이상 (기본 포트 `50002` 또는 `3306`)
+- Git
+
+### Step 1 — DB 초기화
+
+MariaDB에 접속해 스키마와 계정을 생성한다.
+
+```sql
+CREATE DATABASE IF NOT EXISTS SJSJSS
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 앱 전용 계정 (root 사용 비권장)
+CREATE USER IF NOT EXISTS 'your_db_user'@'%' IDENTIFIED BY 'your_db_password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON SJSJSS.* TO 'your_db_user'@'%';
+FLUSH PRIVILEGES;
+```
+
+### Step 2 — `.env` 파일 생성
+
+`.env.example`을 복사해 `.env`를 만들고 실제 값으로 채운다.
+
+```bash
+copy .env.example .env      # Windows CMD
+cp .env.example .env        # Mac/Linux
+```
+
+`.env` 파일 편집:
+
+```dotenv
+TAG=latest
+DB_HOST=localhost
+DB_PORT=50002          # 로컬 MariaDB 포트 (기본 3306이면 3306으로 변경)
+DB_NAME=SJSJSS
+DB_ROOT_PASSWORD=실제_루트_비밀번호
+DB_USERNAME=실제_계정명
+DB_PASSWORD=실제_비밀번호
+```
+
+> `.env`는 `.gitignore`에 등록되어 있어 Git에 커밋되지 않는다.
+
+### Step 3 — 애플리케이션 실행
+
+```powershell
+# 기본 실행 (local 프로파일, 포트 8081)
+mvnw.cmd spring-boot:run
+
+# 특정 프로파일로 실행
+mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+실행 후 접속:
+- 앱: http://localhost:8081
+- Swagger UI: http://localhost:8081/swagger-ui.html
+
+### IntelliJ IDEA에서 실행
+
+`Run Configuration → Active profiles` 입력란에 `local` 입력.  
+`.env` 파일 자동 로드: `EnvFile` 플러그인 설치 후 Run Configuration에서 `.env` 지정.
+
+---
+
+## 5. 설정 파일 구조
+
+### 파일 역할 분리
+
+| 파일 | 적용 환경 | 주요 내용 |
+|---|---|---|
+| `application.yml` | 전체 공통 | MyBatis, Swagger, 앱 이름, 공통 autoconfigure |
+| `application-local.yml` | 로컬 개발 | MariaDB localhost, DevTools, SQL 콘솔 로그 |
+| `application-dev.yml` | 개발 서버 | MariaDB 환경변수, 포트 8081 |
+| `application-prod.yml` | 운영 서버 | MariaDB 환경변수, 포트 80, 파일 로그, Tomcat 튜닝 |
+| `application-test.yml` | 테스트(Jenkins) | H2 인메모리 DB |
+| `onpremise/config/application.yml` | B2B 고객사 설치형 | 평문 설정값, `file:./mapper/` 경로 |
+
+### 프로파일 활성화 우선순위
+
+```
+1. 커맨드라인 인수:   java -jar app.jar --spring.profiles.active=prod
+2. JVM 시스템 프로퍼티: java -Dspring.profiles.active=prod -jar app.jar
+3. 환경변수:         SPRING_PROFILES_ACTIVE=prod
+4. IDE:             IntelliJ → Run Configuration → Active profiles
+5. 기본값:          application.yml의 spring.profiles.active: local
+```
+
+### 환경별 수정 필요 설정
+
+#### 로컬 (`application-local.yml`)
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:50002}/${DB_NAME:SJSJSS}
+    # DB_HOST, DB_PORT, DB_NAME 기본값이 있어 .env 없어도 기본값으로 동작
+    username: ${DB_USERNAME}    # .env 필수
+    password: ${DB_PASSWORD}    # .env 필수
+```
+
+#### 운영 (`application-prod.yml`)
+
+```yaml
+# DB 정보: 환경변수로 주입 (Jenkins Credentials, K8s Secret, docker-compose env 등)
+spring.datasource.url: jdbc:mariadb://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
+logging.file.name: /var/log/application.log   # ← 서버 로그 경로
+server.port: 80                                # ← 운영 포트
+```
+
+---
+
+## 6. 빌드 & 테스트
+
+```powershell
+# 전체 빌드 + 테스트
+mvnw.cmd clean install
+
+# 테스트만 실행
+mvnw.cmd test
+
+# 특정 테스트 클래스만 실행
+mvnw.cmd test -Dtest=MemberApplicationTests
+
+# 테스트 없이 JAR 패키징
+mvnw.cmd clean package -DskipTests
+
+# 코드 스타일 검사
+mvnw.cmd checkstyle:check
+
+# 보안 취약점 스캔 (시간 소요)
+mvnw.cmd org.owasp:dependency-check-maven:check
+
+# SpotBugs 정적 분석
+mvnw.cmd spotbugs:check
+```
+
+빌드 결과물: `target/SpringStarterMavenProject-1.0.jar`
+
+---
+
+## 7. Jenkins 배포 파이프라인
+
+### 파이프라인 구조
+
+```
+① Checkout
+② Build & Test         (mvn clean package, JUnit 리포트)
+③ Code Quality         (Checkstyle)
+④ Security Scan        (OWASP Dependency Check + SpotBugs — 병렬 실행)
+⑤ Docker Build         (Docker 기반 방식만 실행)
+⑥ Image Security Scan  (Docker 기반 방식만 실행 — Trivy)
+⑦ Docker Hub Push      (dockerhub-compose, kubernetes만)
+⑧ Deploy               (선택한 DEPLOY_METHOD 스테이지 1개만 실행)
+```
+
+### Jenkins에서 실행하는 방법
+
+1. Jenkins 파이프라인 Job 생성 → Pipeline script from SCM 설정
+2. **Build with Parameters** 클릭
+3. `DEPLOY_METHOD` 드롭다운에서 원하는 배포 방법 선택
+4. Build 시작
+
+---
+
+## 8. 배포 방법별 상세 가이드
+
+### 배포 방법 선택 기준
+
+| 상황 | 권장 방법 |
+|---|---|
+| 로컬 PC에 JAR만 저장하고 싶을 때 | `local-windows-folder` |
+| 로컬 PC에서 Docker 컨테이너로 테스트할 때 | `local-docker` |
+| 내 회사 서버에 JAR 직접 배포할 때 | `remote-ssh` |
+| 내 회사 서버에 Docker로 배포할 때 ★ | `dockerhub-compose` |
+| 클라우드/대규모 서비스 배포할 때 ★ | `kubernetes` |
+| 고객사에 JAR + 스크립트 패키지로 납품할 때 | `onpremise-zip` |
+| 고객사에 Docker 이미지 패키지로 납품할 때 | `onpremise-docker` |
+
+---
+
+### `local-windows-folder` — JAR 파일만 로컬 저장
+
+빌드된 JAR를 이 PC의 지정 폴더에 복사한다. 앱 실행 없이 파일만 저장.
+
+**수정할 설정 없음** — 사전 조건만 확인.
+
+**사전 조건**
+```
+Jenkins 컨테이너 실행 시 볼륨 마운트 필요:
+  -v "C:\SJSJSS\Project\01.File\StarterMavenProject:/var/deploy"
+```
+
+**결과물**: `C:\SJSJSS\Project\01.File\StarterMavenProject\app.jar`
+
+---
+
+### `local-windows-docker` — 로컬 JAR 저장 + Docker 컨테이너 실행
+
+JAR를 로컬 폴더에 저장하고 Docker 이미지로도 빌드해 컨테이너를 즉시 실행한다.
+
+**Jenkinsfile 수정 불필요** — Jenkins Credentials만 등록.
+
+**사전 조건**
+```
+① Docker Desktop 실행 중
+② Jenkins 볼륨 마운트 설정 (위와 동일)
+③ Jenkins Credentials 등록:
+   Jenkins 관리 → Credentials → Global → Add Credentials
+     Kind    : Username with password
+     ID      : db-credentials
+     Username: DB 계정명
+     Password: DB 비밀번호
+```
+
+**결과물**: `http://localhost:8081` (컨테이너 실행)
+
+---
+
+### `local-docker` — Docker 컨테이너로 로컬 실행
+
+이미지 빌드 후 현재 PC에서 컨테이너를 즉시 실행한다.
+
+**사전 조건**
+```
+① Docker Desktop 실행 중
+② Jenkins Credentials: db-credentials (위와 동일)
+```
+
+**결과물**: `http://localhost:8081`
+
+---
+
+### `remote-ssh` — 원격 서버에 JAR 배포
+
+빌드된 JAR를 원격 Linux 서버로 전송해 자동 실행한다.
+
+**Jenkinsfile 상단 수정 필요**
+
+```groovy
+// Jenkinsfile — environment 블록
+REMOTE_HOST = '실제_서버_IP'        // ← 변경
+REMOTE_USER = 'ubuntu'              // ← 서버 계정으로 변경
+REMOTE_PATH = '/home/ubuntu/app'    // ← 배포 경로로 변경
+```
+
+**Jenkins Credentials 등록**
+```
+Jenkins 관리 → Credentials → Global → Add Credentials
+  Kind    : SSH Username with private key
+  ID      : deploy-server-ssh
+  Username: 서버 계정 (예: ubuntu)
+  Key     : 서버 접속용 PEM 키 내용 붙여넣기
+```
+
+**결과물**: 원격 서버 `서버IP:8081`에서 앱 구동
+
+---
+
+### `dockerhub-compose` ★ — Docker Hub + 원격 서버 docker-compose
+
+이미지를 Docker Hub에 Push하고 원격 서버에서 `docker-compose`로 실행한다.  
+**중소규모 SaaS 서비스의 현업 표준.**
+
+**Jenkinsfile 수정 필요**
+
+```groovy
+// Jenkinsfile — environment 블록
+DOCKER_IMAGE = "실제_도커허브_ID/spring-starter-maven"  // ← 변경
+REMOTE_HOST  = '실제_서버_IP'                           // ← 변경
+REMOTE_USER  = 'ubuntu'                                 // ← 변경
+REMOTE_PATH  = '/home/ubuntu/app'                       // ← 변경
+```
+
+**Jenkins Credentials 등록 (2개)**
+```
+① dockerhub-credentials
+   Kind    : Username with password
+   ID      : dockerhub-credentials
+   Username: Docker Hub 아이디
+   Password: Docker Hub 비밀번호 또는 Access Token
+
+② deploy-server-ssh
+   Kind    : SSH Username with private key
+   ID      : deploy-server-ssh
+   (remote-ssh와 동일)
+```
+
+**원격 서버 사전 조건**
+```bash
+# 원격 서버에 Docker + docker-compose 설치 필요
+docker --version        # 20.10+
+docker-compose --version  # 또는 docker compose version
+```
+
+**결과물**: 원격 서버에서 컨테이너 구동
+
+---
+
+### `kubernetes` ★ — Kubernetes 클러스터 롤링 배포
+
+이미지를 빌드해 레지스트리에 Push하고 K8s 클러스터에 자동 배포한다.  
+**대규모/클라우드 SaaS 서비스의 현업 표준.**
+
+**Jenkinsfile 수정 필요**
+
+```groovy
+DOCKER_IMAGE   = "실제_도커허브_ID/spring-starter-maven"  // ← 변경
+K8S_NAMESPACE  = 'default'                               // ← 네임스페이스 변경 시
+```
+
+**k8s 매니페스트 수정 필요**
+
+```yaml
+# deploy/k8s/configmap.yaml — 비민감 설정
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  DB_HOST: "실제_DB서버_IP"    # ← 변경
+  DB_PORT: "3306"
+  DB_NAME: "SJSJSS"
+
+# deploy/k8s/secret.yaml — 민감 정보 (Base64 인코딩 또는 stringData 사용)
+stringData:
+  DB_USERNAME: "실제_계정명"    # ← 변경
+  DB_PASSWORD: "실제_비밀번호"  # ← 변경
+
+# deploy/k8s/deployment.yaml
+containers:
+  - image: IMAGE_PLACEHOLDER   # Jenkins가 자동으로 실제 이미지로 치환
+```
+
+**Jenkins Credentials 등록 (2개)**
+```
+① dockerhub-credentials (위와 동일)
+
+② kubeconfig
+   Jenkins 관리 → Credentials → Global → Add Credentials
+   Kind : Secret file
+   ID   : kubeconfig
+   File : ~/.kube/config 파일 업로드
+```
+
+**결과물**: K8s 클러스터에서 롤링 업데이트, `LoadBalancer IP:80` 접속
+
+---
+
+### `onpremise-zip` — B2B 고객사 설치형 JAR 패키지
+
+JAR + 설정 파일 + SQL 매퍼 + 시작/종료 스크립트를 ZIP으로 패키징한다.  
+**JDK 17만 있으면 설치 가능. 인터넷 불필요.**
+
+**수정할 설정 없음** — 빌드만 하면 즉시 생성.
+
+**생성 파일**: `spring-starter-maven-1.0-release.zip`
+
+```
+spring-starter-maven-1.0/
+├── app.jar
+├── config/
+│   └── application.yml     ← 고객이 DB 정보 입력
+├── mapper/
+│   └── *.xml               ← SQL 수정 시 편집
+├── bin/
+│   ├── start.sh / stop.sh  ← Linux
+│   └── start.bat / stop.bat ← Windows
+└── INSTALL.md
+```
+
+**고객사 설치 흐름**
+
+```bash
+# Linux
+unzip spring-starter-maven-1.0-release.zip
+cd spring-starter-maven-1.0
+nano config/application.yml    # DB 접속 정보 입력
+chmod +x bin/start.sh
+bin/start.sh
+
+# Windows
+# 탐색기로 ZIP 해제 → config\application.yml 편집 → bin\start.bat 더블클릭
+```
+
+자세한 내용 → [deploy/onpremise/INSTALL.md](deploy/onpremise/INSTALL.md)
+
+---
+
+### `onpremise-docker` — B2B 고객사 설치형 Docker 패키지
+
+Docker 이미지를 `tar.gz`로 저장하고 `docker-compose`와 함께 ZIP으로 패키징한다.  
+**인터넷 없는 폐쇄망 환경에서도 Docker만 있으면 설치 가능.**
+
+**Jenkinsfile 수정 필요**
+```groovy
+DOCKER_IMAGE = "실제_도커허브_ID/spring-starter-maven"  // 이미지 이름 기준으로 tar.gz 생성
+```
+
+**생성 파일**: `spring-starter-maven-1.0-docker-release.zip`
+
+```
+spring-starter-maven-1.0-docker/
+├── image.tar.gz           ← Docker 이미지 (docker load로 설치)
+├── docker-compose.yml     ← DB 정보 입력 후 실행
+├── INSTALL.md
+└── load-and-run.sh        ← 원클릭 설치 스크립트 (Linux)
+```
+
+**고객사 설치 흐름 (Linux)**
+
+```bash
+unzip spring-starter-maven-1.0-docker-release.zip
+cd spring-starter-maven-1.0-docker
+vi docker-compose.yml      # DB_HOST, DB_USERNAME, DB_PASSWORD 수정
+chmod +x load-and-run.sh
+./load-and-run.sh          # 이미지 로드 + 컨테이너 시작
+```
+
+**고객사 설치 흐름 (Windows)**
+
+```powershell
+Expand-Archive *.zip
+notepad docker-compose.yml    # DB 정보 수정
+docker load -i image.tar.gz
+docker-compose up -d
+```
+
+자세한 내용 → [deploy/onpremise/INSTALL.md](deploy/onpremise/INSTALL.md)
+
+---
+
+## 9. B2B 고객사 설치형 배포
+
+### 고객사 설정 파일 (`deploy/onpremise/config/application.yml`)
+
+고객사에 전달되는 설정 파일. **Spring Boot 외부 설정 원칙**에 따라 `app.jar` 옆  
+`config/` 폴더에 위치하면 JAR 내부 설정보다 자동으로 우선 적용된다.
+
+고객이 수정해야 할 항목:
+
+```yaml
+# deploy/onpremise/config/application.yml
+spring:
+  datasource:
+    url: jdbc:mariadb://localhost:3306/SJSJSS   # DB 서버 IP, 포트, DB명 변경
+    username: your_db_user                       # DB 계정명 변경
+    password: your_db_password                   # DB 비밀번호 변경
+
+server:
+  port: 8080    # 사용할 포트 변경
+
+mybatis:
+  mapper-locations: file:./mapper/**/*.xml       # 외부 mapper 디렉터리 (수정 불필요)
+```
+
+> `file:./mapper/` 경로를 사용하기 때문에 고객사에서 SQL 매퍼 XML을  
+> 직접 수정하고 앱만 재시작하면 반영된다 (JAR 재빌드 불필요).
+
+### Linux 서비스 자동 시작 (systemd)
+
+```bash
+sudo tee /etc/systemd/system/spring-app.service <<EOF
+[Unit]
+Description=Spring Starter Maven Application
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/spring-starter-maven
+ExecStart=/opt/spring-starter-maven/bin/start.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable --now spring-app
+```
+
+---
+
+## 10. API 문서 (Swagger)
+
+앱 실행 후 아래 URL에서 API를 확인하고 테스트할 수 있다.
+
+| URL | 설명 |
+|---|---|
+| http://localhost:8081/swagger-ui.html | Swagger UI |
+| http://localhost:8081/api-docs | OpenAPI JSON 스펙 |
+
+Postman import: `http://localhost:8081/api-docs` URL을 Postman의 Import에 붙여넣기.
+
+---
+
+## 11. 코드 컨벤션
+
+### 새 도메인 추가 시 체크리스트
+
+```
+□ interfaces/api/v1/{domain}/     — REST 컨트롤러
+□ interfaces/web/{domain}/        — Thymeleaf 컨트롤러
+□ application/{domain}/dto/       — 요청/응답 DTO
+□ application/{domain}/mapper/    — MapStruct 매퍼
+□ domain/{domain}/entity/         — 엔티티
+□ domain/{domain}/service/        — 서비스 인터페이스
+□ domain/{domain}/service/impl/   — 서비스 구현체
+□ domain/{domain}/repository/mybatis/ — @Mapper 인터페이스
+□ resources/static/mybatis/mapper/{domain}/*.xml — SQL 매퍼
+```
+
+### 에러 추가 방법
+
+```java
+// 1. ErrorCode enum에 추가
+MEMBER_NOT_FOUND(404, "MEMBER_001", "회원을 찾을 수 없습니다"),
+
+// 2. Service에서 throw
+throw new EntityNotFoundException(ErrorCode.MEMBER_NOT_FOUND);
+
+// 3. GlobalExceptionHandler가 자동으로 ApiResponse로 변환해 응답
+```
+
+### DTO 변환 규칙
+
+```java
+// ✅ MapStruct 사용 (application/{domain}/mapper/)
+MemberResponseDto dto = memberMapper.toDto(member);
+
+// ❌ 수동 변환 금지
+MemberResponseDto dto = new MemberResponseDto(member.getId(), ...);
+```
+
+### 환경 분리 원칙
+
+```
+✅ 환경변수(${VAR}) 또는 외부 설정 파일로 주입
+❌ application.yml에 DB 비밀번호, API 키 등 민감 정보 직접 작성
+```

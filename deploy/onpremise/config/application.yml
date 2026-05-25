@@ -1,0 +1,110 @@
+# ============================================================
+# config/application.yml — 고객사 온프레미스 설치형 설정 파일
+# ============================================================
+# 역할:
+#   고객사 서버에서 직접 편집하는 설정 파일.
+#   app.jar와 같은 폴더의 config/ 하위에 두면 JAR 내부 설정보다
+#   이 파일이 자동으로 우선 적용됨 (Spring Boot 외부 설정 원칙).
+#
+# 파일 배치 구조:
+#   spring-starter-maven/           ← 설치 루트 디렉터리
+#   ├── app.jar                     ← 애플리케이션 실행 파일 (수정 금지)
+#   ├── config/
+#   │   └── application.yml         ← ★ 이 파일 (DB 접속 정보 등 편집)
+#   ├── mapper/
+#   │   └── *.xml                   ← SQL 매퍼 (필요 시 수정 가능)
+#   ├── bin/
+#   │   ├── start.sh / start.bat    ← 시작 스크립트
+#   │   └── stop.sh  / stop.bat     ← 종료 스크립트
+#   └── INSTALL.md                  ← 설치 가이드
+#
+# Spring Boot 외부 설정 로딩 우선순위 (높은 순):
+#   1. ./config/application.yml     ← 이 파일 (최우선)
+#   2. ./application.yml            ← JAR 옆에 바로 둔 파일
+#   3. JAR 내부 classpath 설정      ← 개발팀 기본값
+#
+# ⚠ 주의사항:
+#   - DB_HOST, DB_USERNAME, DB_PASSWORD 값을 반드시 실제 값으로 변경할 것
+#   - 이 파일에 DB 비밀번호가 평문으로 저장되므로 파일 권한 관리 필수
+#     Linux: chmod 600 config/application.yml
+#   - 설정 변경 후 bin/stop.sh → bin/start.sh 으로 재시작 필요
+# ============================================================
+
+# ── Spring 프로파일 ──────────────────────────────────────────────────────────
+spring:
+  profiles:
+    active: prod          # 운영 환경. 변경 불필요.
+
+  # ── 데이터베이스 접속 정보 ───────────────────────────────────────────────────
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+
+    # ★ 아래 3가지를 고객사 DB 환경에 맞게 수정하세요
+    url: jdbc:mariadb://localhost:3306/SJSJSS
+    #                   ↑ DB서버 IP   ↑포트  ↑DB이름
+    # 예시:
+    #   url: jdbc:mariadb://192.168.1.100:3306/SJSJSS   # DB가 다른 서버에 있을 때
+    #   url: jdbc:mariadb://localhost:3306/MY_DB         # DB이름이 다를 때
+
+    username: your_db_user      # ← DB 계정명으로 변경
+    password: your_db_password  # ← DB 비밀번호로 변경
+
+    # 커넥션 풀 설정 (기본값 유지 권장, 필요 시 조정)
+    hikari:
+      maximum-pool-size: 10       # 최대 연결 수 (동시 접속자 수에 따라 조정)
+      minimum-idle: 3             # 최소 유지 연결 수
+      connection-timeout: 30000   # 연결 대기 최대 시간 (ms) — 30초
+
+  # ── Thymeleaf 설정 ──────────────────────────────────────────────────────────
+  thymeleaf:
+    cache: true           # 운영에서는 true (성능). 테스트 중엔 false로 변경 가능
+
+# ── MyBatis 설정 ─────────────────────────────────────────────────────────────
+mybatis:
+  # ★ 외부 파일시스템의 mapper 디렉터리를 바라보도록 file: 프리픽스 사용
+  # classpath: 는 JAR 내부를 참조하지만, file: 은 이 파일 기준 상대경로를 참조
+  # → 고객사에서 SQL을 직접 수정하고 재시작만 하면 반영됨 (JAR 재빌드 불필요)
+  mapper-locations: file:./mapper/**/*.xml
+  #                        ↑ app.jar와 같은 폴더의 mapper/ 디렉터리
+
+  type-aliases-package: com.example.demo
+
+  configuration:
+    map-underscore-to-camel-case: true  # DB snake_case → Java camelCase 자동 변환
+    jdbc-type-for-null: NULL
+    call-setters-on-nulls: true
+
+# ── 서버 설정 ─────────────────────────────────────────────────────────────────
+server:
+  port: 8080              # ★ 사용할 포트. 8080이 이미 사용 중이면 다른 포트로 변경
+                          # 예: 80 (HTTP 기본), 8443 (HTTPS), 9090
+  tomcat:
+    threads:
+      max: 200            # 최대 동시 처리 스레드 수
+      min-spare: 10       # 최소 대기 스레드 수
+
+# ── 로깅 설정 ─────────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO                    # 전체 로그 레벨 (INFO 권장)
+    com.example.demo: INFO        # 애플리케이션 로그 레벨
+                                  # 문제 발생 시 DEBUG로 변경해 상세 로그 확인 가능
+  file:
+    name: ./logs/application.log  # ★ 로그 파일 경로 (app.jar 기준 상대경로)
+                                  # 절대경로 예: /opt/app/logs/application.log (Linux)
+                                  #              C:/app/logs/application.log    (Windows)
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB        # 단일 로그 파일 최대 크기 (초과 시 자동 분할)
+      max-history: 30             # 보관할 로그 파일 수 (30일치)
+      total-size-cap: 2GB         # 로그 전체 최대 용량 (초과 시 오래된 파일 자동 삭제)
+
+# ── Actuator (헬스체크/모니터링) ──────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info      # 외부 노출 엔드포인트 (최소화 권장)
+  endpoint:
+    health:
+      show-details: never         # 헬스체크 상세 정보 비공개 (보안)

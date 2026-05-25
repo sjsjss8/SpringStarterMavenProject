@@ -5,7 +5,7 @@ pipeline {
     parameters {
         choice(
             name: 'DEPLOY_METHOD',
-            choices: ['local-windows-folder', 'local-windows-docker', 'local-docker', 'remote-ssh', 'dockerhub-compose', 'kubernetes'],
+            choices: ['local-windows-folder', 'local-windows-docker', 'local-docker', 'remote-ssh', 'dockerhub-compose', 'kubernetes', 'onpremise-zip', 'onpremise-docker'],
             description: '''── 배포 방법을 선택하세요 ──────────────────────────────────────────
 
   local-windows-folder
@@ -29,15 +29,29 @@ pipeline {
     결과 → 원격 서버에서 앱 구동 (서버 IP:8081 접속)
     사전 조건 : Jenkinsfile 내 REMOTE_HOST/USER/PATH 설정 + SSH 키 등록
 
-  dockerhub-compose  ★ 현업 표준 (중소규모)
+  dockerhub-compose  ★ 현업 표준 (중소규모/SaaS)
     Docker 이미지를 빌드해 Docker Hub에 올린 뒤 원격 서버에서 docker-compose로 실행
     결과 → 원격 서버에서 컨테이너 구동 (서버 IP:8081 접속)
     사전 조건 : Docker Hub Credentials(dockerhub-credentials) + SSH 키(deploy-server-ssh) 등록
 
-  kubernetes  ★ 현업 표준 (대규모/클라우드)
+  kubernetes  ★ 현업 표준 (대규모/클라우드/SaaS)
     Docker 이미지를 빌드해 레지스트리에 올린 뒤 Kubernetes 클러스터에 자동 배포
     결과 → K8s 클러스터에서 롤링 업데이트 구동 (LoadBalancer IP:80 접속)
     사전 조건 : K8s 클러스터 + kubeconfig Credentials(kubeconfig) + Docker Hub Credentials 등록
+
+  onpremise-zip  ★ B2B 고객사 설치형 (JAR 패키지)
+    JAR + 설정 파일 템플릿 + SQL 매퍼 + 시작/종료 스크립트를 ZIP으로 패키징
+    결과 → {앱명}-{버전}-release.zip (Jenkins Artifacts에서 다운로드)
+    내용 : app.jar / config/application.yml / mapper/*.xml / bin/start.sh 등
+    사용 : 고객사 서버에 JDK 17만 있으면 ZIP 해제 후 config 수정 → 실행
+    사전 조건 : 없음 (빌드만 되면 즉시 사용 가능)
+
+  onpremise-docker  ★ B2B 고객사 설치형 (Docker 패키지)
+    Docker 이미지를 tar.gz로 저장하고 docker-compose와 함께 ZIP으로 패키징
+    결과 → {앱명}-{버전}-docker-release.zip (Jenkins Artifacts에서 다운로드)
+    내용 : image.tar.gz / docker-compose.yml / INSTALL.md / load-and-run.sh
+    사용 : 인터넷 없는 폐쇄망 고객사 서버에서도 Docker만 있으면 즉시 설치 가능
+    사전 조건 : Docker Desktop 또는 Docker Engine 실행 중
 
 ────────────────────────────────────────────────────────────────'''
         )
@@ -128,7 +142,7 @@ pipeline {
                         sh '''
                             mvn org.owasp:dependency-check-maven:check \
                               -DfailBuildOnCVSS=7 \
-                              -DsuppressionFile=owasp-suppressions.xml \
+                              -DsuppressionFile=config/owasp-suppressions.xml \
                               || true
                         '''
                     }
@@ -165,7 +179,7 @@ pipeline {
         stage('Docker Build') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['local-docker', 'local-windows-docker', 'dockerhub-compose', 'kubernetes']
+                    params.DEPLOY_METHOD in ['local-docker', 'local-windows-docker', 'dockerhub-compose', 'kubernetes', 'onpremise-docker']
                 }
             }
             steps {
@@ -179,7 +193,7 @@ pipeline {
         stage('Image Security Scan') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['local-docker', 'local-windows-docker', 'dockerhub-compose', 'kubernetes']
+                    params.DEPLOY_METHOD in ['local-docker', 'local-windows-docker', 'dockerhub-compose', 'kubernetes', 'onpremise-docker']
                 }
             }
             steps {
@@ -499,7 +513,7 @@ PS1EOF
         //   사전 조건 :
         //     - Jenkins Credentials에 'dockerhub-credentials' (Username/Password) 등록
         //     - Jenkins Credentials에 'kubeconfig' (Secret file: ~/.kube/config) 등록
-        //     - k8s/secret.yaml의 DB 접속 정보 실제 값으로 교체 후 커밋
+        //     - deploy/k8s/secret.yaml의 DB 접속 정보 실제 값으로 교체 후 커밋
         //     - Jenkinsfile 상단 DOCKER_IMAGE에 실제 DockerHub ID 입력
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: Kubernetes') {
@@ -517,13 +531,13 @@ PS1EOF
                                 export KUBECONFIG=\$KUBECONFIG_FILE
 
                                 # deployment.yaml의 IMAGE_PLACEHOLDER를 실제 이미지 태그로 치환
-                                sed -i 's|IMAGE_PLACEHOLDER|${DOCKER_IMAGE}:${DOCKER_TAG}|g' k8s/deployment.yaml
+                                sed -i 's|IMAGE_PLACEHOLDER|${DOCKER_IMAGE}:${DOCKER_TAG}|g' deploy/k8s/deployment.yaml
 
                                 # Secret / ConfigMap / Deployment / Service 순서로 적용
-                                kubectl apply -f k8s/secret.yaml     --namespace=${K8S_NAMESPACE}
-                                kubectl apply -f k8s/configmap.yaml  --namespace=${K8S_NAMESPACE}
-                                kubectl apply -f k8s/deployment.yaml --namespace=${K8S_NAMESPACE}
-                                kubectl apply -f k8s/service.yaml    --namespace=${K8S_NAMESPACE}
+                                kubectl apply -f deploy/k8s/secret.yaml     --namespace=${K8S_NAMESPACE}
+                                kubectl apply -f deploy/k8s/configmap.yaml  --namespace=${K8S_NAMESPACE}
+                                kubectl apply -f deploy/k8s/deployment.yaml --namespace=${K8S_NAMESPACE}
+                                kubectl apply -f deploy/k8s/service.yaml    --namespace=${K8S_NAMESPACE}
 
                                 # 롤링 배포 완료 대기 (최대 3분)
                                 kubectl rollout status deployment/${APP_NAME} \\
@@ -543,13 +557,168 @@ PS1EOF
                         echo "    Kind    : Secret file"
                         echo "    ID      : kubeconfig"
                         echo "    File    : ~/.kube/config 파일 업로드"
-                        echo "  k8s/secret.yaml DB 접속 정보 실제 값으로 설정 확인"
+                        echo "  deploy/k8s/secret.yaml DB 접속 정보 실제 값으로 설정 확인"
                         echo "  ───────────────────────────────────────────────────"
                         unstable("Kubernetes 배포 실패: ${e.message}")
                     }
                 }
             }
         }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // [onpremise-zip] 고객사 설치형 JAR 릴리즈 패키지 생성
+        //   내용: app.jar + config/application.yml + mapper/*.xml + bin 스크립트
+        //   결과: {앱명}-{버전}-release.zip → Jenkins Artifacts에서 다운로드
+        //   사전 조건: 없음 (빌드 성공 후 바로 사용 가능)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        stage('Deploy: On-Premise ZIP') {
+            when {
+                expression { params.DEPLOY_METHOD == 'onpremise-zip' }
+            }
+            steps {
+                sh """
+                    # 프로젝트 버전을 pom.xml에서 추출
+                    APP_VER=\$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+                    PKG_NAME="${APP_NAME}-\${APP_VER}"
+                    PKG_DIR="dist/\${PKG_NAME}"
+
+                    echo "── 패키지 디렉터리 생성: \$PKG_DIR"
+                    rm -rf dist/
+                    mkdir -p "\$PKG_DIR/config"
+                    mkdir -p "\$PKG_DIR/mapper"
+                    mkdir -p "\$PKG_DIR/bin"
+                    mkdir -p "\$PKG_DIR/logs"
+
+                    # ── JAR 파일 복사 ─────────────────────────────────────────
+                    APP_JAR=\$(ls target/*.jar | grep -v plugin | head -1)
+                    echo "── JAR 복사: \$APP_JAR"
+                    cp "\$APP_JAR" "\$PKG_DIR/app.jar"
+
+                    # ── 고객용 설정 파일 복사 ─────────────────────────────────
+                    # 이 파일이 JAR 옆 config/ 디렉터리에 위치하면
+                    # Spring Boot가 자동으로 JAR 내부 설정보다 우선 적용
+                    echo "── 설정 파일 복사: deploy/onpremise/config/application.yml"
+                    cp deploy/onpremise/config/application.yml "\$PKG_DIR/config/"
+
+                    # ── MyBatis XML 매퍼 복사 ────────────────────────────────
+                    # 고객이 SQL을 수정하고 싶을 때 이 폴더의 파일을 편집 후 재시작
+                    echo "── SQL 매퍼 파일 복사"
+                    find src/main/resources/static/mybatis/mapper -name "*.xml" \\
+                        -exec cp {} "\$PKG_DIR/mapper/" \\; 2>/dev/null || true
+
+                    # ── 실행 스크립트 복사 ────────────────────────────────────
+                    echo "── 시작/종료 스크립트 복사"
+                    cp deploy/onpremise/bin/start.sh  "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/stop.sh   "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/start.bat "\$PKG_DIR/bin/"
+                    cp deploy/onpremise/bin/stop.bat  "\$PKG_DIR/bin/"
+                    chmod +x "\$PKG_DIR/bin/"*.sh
+
+                    # ── 설치 가이드 복사 ──────────────────────────────────────
+                    cp deploy/onpremise/INSTALL.md "\$PKG_DIR/"
+
+                    # ── ZIP 패키지 생성 ───────────────────────────────────────
+                    ZIP_FILE="\${PKG_NAME}-release.zip"
+                    echo "── ZIP 생성: \$ZIP_FILE"
+                    (cd dist && zip -r "../\$ZIP_FILE" "\${PKG_NAME}/")
+
+                    echo ""
+                    echo "✅ 온프레미스 JAR 패키지 생성 완료"
+                    echo "   파일명 : \$ZIP_FILE"
+                    echo "   크기   : \$(du -sh "\$ZIP_FILE" | cut -f1)"
+                    echo "   Jenkins Artifacts 탭에서 다운로드 가능"
+                    echo ""
+                    echo "── 패키지 내용 ─────────────────────────────"
+                    find dist/\${PKG_NAME} -type f | sort
+                """
+                archiveArtifacts artifacts: '*-release.zip', fingerprint: true
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // [onpremise-docker] 고객사 설치형 Docker 릴리즈 패키지 생성
+        //   내용: Docker 이미지 tar.gz + docker-compose.yml + 설치 스크립트
+        //   결과: {앱명}-{버전}-docker-release.zip → Jenkins Artifacts에서 다운로드
+        //   특징: 인터넷이 없는 폐쇄망 고객사에서도 Docker만 있으면 즉시 설치 가능
+        //   사전 조건: Docker Build 스테이지 성공 후 실행 (자동으로 포함됨)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        stage('Deploy: On-Premise Docker') {
+            when {
+                expression { params.DEPLOY_METHOD == 'onpremise-docker' }
+            }
+            steps {
+                sh """
+                    # 프로젝트 버전을 pom.xml에서 추출
+                    APP_VER=\$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+                    PKG_NAME="${APP_NAME}-\${APP_VER}-docker"
+                    PKG_DIR="dist/\${PKG_NAME}"
+
+                    echo "── 패키지 디렉터리 생성: \$PKG_DIR"
+                    rm -rf dist/
+                    mkdir -p "\$PKG_DIR"
+
+                    # ── Docker 이미지를 tar.gz로 저장 ────────────────────────
+                    # docker save: 이미지를 파일로 내보냄 (모든 레이어 포함)
+                    # gzip: 압축해서 파일 크기 줄임 (30~60% 압축률)
+                    # → 인터넷 없는 고객사 서버에서 'docker load'로 즉시 설치 가능
+                    echo "── Docker 이미지 저장 중... (수 분 소요될 수 있음)"
+                    docker save ${DOCKER_IMAGE}:${DOCKER_TAG} | gzip > "\$PKG_DIR/image.tar.gz"
+                    echo "   이미지 크기: \$(du -sh "\$PKG_DIR/image.tar.gz" | cut -f1)"
+
+                    # ── docker-compose 파일 복사 ──────────────────────────────
+                    echo "── docker-compose.yml 복사"
+                    cp deploy/onpremise/docker-compose.yml "\$PKG_DIR/"
+
+                    # ── 설치 가이드 복사 ──────────────────────────────────────
+                    cp deploy/onpremise/INSTALL.md "\$PKG_DIR/"
+
+                    # ── Linux 원클릭 설치 스크립트 생성 ─────────────────────
+                    # 고객이 복잡한 명령어 없이 한 번의 실행으로 설치 완료
+                    cat > "\$PKG_DIR/load-and-run.sh" << 'SHEOF'
+#!/bin/bash
+set -e
+echo "=========================================="
+echo "  Spring Starter Maven 설치 시작"
+echo "=========================================="
+echo ""
+echo "[1/3] Docker 이미지 로드 중..."
+docker load < image.tar.gz
+echo ""
+echo "[2/3] docker-compose.yml 설정 확인..."
+echo "      ★ DB 접속 정보를 수정했는지 확인하세요!"
+echo "      수정: vi docker-compose.yml 또는 nano docker-compose.yml"
+echo ""
+read -p "      설정이 완료되었으면 Enter를 누르세요..." _
+echo ""
+echo "[3/3] 컨테이너 시작 중..."
+docker-compose up -d
+echo ""
+echo "=========================================="
+echo "  설치 완료!"
+echo "  브라우저에서 접속: http://localhost:8080"
+echo "  로그 확인: docker-compose logs -f"
+echo "=========================================="
+SHEOF
+                    chmod +x "\$PKG_DIR/load-and-run.sh"
+
+                    # ── ZIP 패키지 생성 ───────────────────────────────────────
+                    ZIP_FILE="\${PKG_NAME}-release.zip"
+                    echo "── ZIP 생성: \$ZIP_FILE"
+                    (cd dist && zip -r "../\$ZIP_FILE" "\${PKG_NAME}/")
+
+                    echo ""
+                    echo "✅ 온프레미스 Docker 패키지 생성 완료"
+                    echo "   파일명 : \$ZIP_FILE"
+                    echo "   크기   : \$(du -sh "\$ZIP_FILE" | cut -f1)"
+                    echo "   Jenkins Artifacts 탭에서 다운로드 가능"
+                    echo ""
+                    echo "── 패키지 내용 ─────────────────────────────"
+                    ls -lh "\$PKG_DIR/"
+                """
+                archiveArtifacts artifacts: '*-docker-release.zip', fingerprint: true
+            }
+        }
+
     }
 
     // ── 빌드 후 처리 ─────────────────────────────────────────────────────────
