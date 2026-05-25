@@ -1,0 +1,89 @@
+# ============================================================
+# docker-compose.full.yml — 풀스택 (앱 + MariaDB 모두 컨테이너)
+# ============================================================
+# 역할:
+#   호스트에 MariaDB 가 없거나 격리된 DB 환경이 필요할 때 사용.
+#   앱 + DB 둘 다 컨테이너로 띄워 완전 격리된 개발/테스트 환경 구성.
+#
+# 기본 docker-compose.yml 과의 차이:
+#   - 이 파일은 mariadb 서비스도 정의 (앱과 함께 기동)
+#   - depends_on 으로 DB healthy 후 앱 시작 보장
+#
+# 사용:
+#   docker-compose -f docker-compose.full.yml up -d
+#   docker-compose -f docker-compose.full.yml down
+#
+# 사전 조건:
+#   1. .env 파일 (DB_ROOT_PASSWORD, DB_USERNAME, DB_PASSWORD 등 채워야 함)
+#   2. Docker Desktop 실행 중
+#   3. 호스트에 다른 mariadb 컨테이너 없어야 함 (이름 충돌 방지)
+# ============================================================
+
+services:
+
+  # ── Spring Boot 앱 ──────────────────────────────────────────────────────────
+  app:
+    build: .
+    image: sangjinyoo/spring-starter-maven:${TAG:-latest}
+    container_name: spring-starter-app
+
+    ports:
+      - "8081:8081"
+
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: mariadb              # 같은 compose 네트워크의 서비스 이름으로 해석
+      DB_PORT: 3306
+      DB_NAME:     ${DB_NAME:-SJSJSS}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+
+    depends_on:
+      mariadb:
+        condition: service_healthy   # mariadb 가 healthy 가 된 후에만 앱 기동
+
+    restart: unless-stopped
+
+    networks:
+      - app-network
+
+
+  # ── MariaDB ─────────────────────────────────────────────────────────────────
+  mariadb:
+    image: mariadb:10.11
+    container_name: spring-starter-mariadb
+
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE:      ${DB_NAME:-SJSJSS}
+      MARIADB_USER:          ${DB_USERNAME}
+      MARIADB_PASSWORD:      ${DB_PASSWORD}
+
+    # 호스트에서도 직접 접속하려면 포트 노출. IDE 디버깅 편의.
+    # 호스트 3306 이 이미 점유되어 있으면 "13306:3306" 처럼 변경
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      # 초기 DDL 자동 적용:
+      # - ./src/main/resources/db/init:/docker-entrypoint-initdb.d
+
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+    networks:
+      - app-network
+
+
+volumes:
+  mariadb-data:
+
+networks:
+  app-network:
+    driver: bridge
