@@ -20,12 +20,15 @@ spec:
       labels:
         app: spring-starter-maven
     spec:
+      terminationGracePeriodSeconds: 60   # SIGTERM 후 최대 60s 대기 (처리 중 요청 마무리)
       containers:
         - name: spring-starter-maven
-          image: IMAGE_PLACEHOLDER   # Jenkins가 빌드 번호 태그로 자동 치환
+          image: IMAGE_PLACEHOLDER         # Jenkins가 빌드 번호 태그로 자동 치환
+          imagePullPolicy: Always          # 같은 태그라도 항상 최신 이미지 Pull
           ports:
             - containerPort: 8081
           env:
+            # ── 비민감 설정 (ConfigMap) ───────────────────────────────────────
             - name: SPRING_PROFILES_ACTIVE
               valueFrom:
                 configMapKeyRef:
@@ -33,19 +36,20 @@ spec:
                   key: SPRING_PROFILES_ACTIVE
             - name: DB_HOST
               valueFrom:
-                secretKeyRef:
-                  name: spring-app-secret
+                configMapKeyRef:
+                  name: spring-app-config
                   key: DB_HOST
             - name: DB_PORT
               valueFrom:
-                secretKeyRef:
-                  name: spring-app-secret
+                configMapKeyRef:
+                  name: spring-app-config
                   key: DB_PORT
             - name: DB_NAME
               valueFrom:
-                secretKeyRef:
-                  name: spring-app-secret
+                configMapKeyRef:
+                  name: spring-app-config
                   key: DB_NAME
+            # ── 민감 정보 (Secret) ───────────────────────────────────────────
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -63,18 +67,20 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
-          # 트래픽 수신 준비 완료 여부 판단 (준비 안 되면 로드밸런서에서 제외)
+          # readinessProbe: 트래픽 수신 준비 완료 여부 (실패 시 로드밸런서에서 제외)
+          # → /readiness : Spring Boot가 관리하는 ReadinessState (DB 연결 등 확인)
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness
               port: 8081
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 3
-          # 파드 생존 여부 판단 (실패 시 자동 재시작)
+          # livenessProbe: 파드 생존 여부 (실패 시 컨테이너 자동 재시작)
+          # → /liveness : 앱 자체가 정상 동작 중인지 (교착상태 등 감지)
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness
               port: 8081
             initialDelaySeconds: 60
             periodSeconds: 30

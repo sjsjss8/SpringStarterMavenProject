@@ -1,0 +1,30 @@
+root = true
+
+# ── 전체 파일 공통 ────────────────────────────────────────────────────────────
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ── YAML (2스페이스 들여쓰기가 표준) ────────────────────────────────────────
+[*.{yml,yaml}]
+indent_size = 2
+
+# ── XML (pom.xml, spotbugs-exclude.xml 등) ──────────────────────────────────
+[*.xml]
+indent_size = 4
+
+# ── Markdown (줄 끝 공백이 줄바꿈 의미를 가질 수 있음) ──────────────────────
+[*.md]
+trim_trailing_whitespace = false
+
+# ── Windows 배치 스크립트 ────────────────────────────────────────────────────
+[*.{cmd,bat}]
+end_of_line = crlf
+
+# ── Makefile (탭 들여쓰기 필수) ─────────────────────────────────────────────
+[Makefile]
+indent_style = tab

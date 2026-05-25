@@ -35,6 +35,11 @@ USER appuser
 
 EXPOSE 8081
 
+# 컨테이너 헬스체크: Docker/Compose가 직접 앱 상태 확인 (Kubernetes는 probe로 별도 관리)
+# --start-period=60s : 앱 기동 시간 동안 실패를 헬스체크에 반영하지 않음
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget -q --spider http://localhost:8081/actuator/health || exit 1
+
 # -Djava.security.egd : Tomcat 시작 속도 개선
 # JAVA_OPTS           : 외부에서 JVM 튜닝 옵션 주입 가능 (예: -Xms256m -Xmx512m)
 ENTRYPOINT ["sh", "-c", \

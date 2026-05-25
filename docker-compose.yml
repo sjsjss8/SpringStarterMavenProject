@@ -2,12 +2,13 @@ services:
 
   # ── Spring Boot 앱 ──────────────────────────────────────────────────────────
   app:
-    image: your-dockerhub-id/spring-starter-maven:${TAG:-latest}   # ← DockerHub ID로 변경
+    build: .                                                          # 로컬에서 이미지 직접 빌드
+    image: your-dockerhub-id/spring-starter-maven:${TAG:-latest}    # ← DockerHub ID로 변경 (push 시 태그로 사용)
     container_name: spring-app
     ports:
       - "8081:8081"
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: dev    # 로컬 Docker 실행 = dev 프로파일
       DB_HOST:     mariadb
       DB_PORT:     3306
       DB_NAME:     ${DB_NAME:-SJSJSS}

@@ -46,7 +46,7 @@ services:
     container_name: mariadb
     restart: unless-stopped
     environment:
-      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}    # root 비밀번호 (앱 접속 계정과 별도)
       MARIADB_DATABASE:      ${DB_NAME:-SJSJSS}
       MARIADB_USER:          ${DB_USERNAME}
       MARIADB_PASSWORD:      ${DB_PASSWORD}

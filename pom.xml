@@ -52,11 +52,7 @@
 	        <artifactId>mapstruct</artifactId>
 	        <version>${mapstruct.version}</version>
 	    </dependency>
-	    <dependency>
-	        <groupId>org.mapstruct</groupId>
-	        <artifactId>mapstruct-processor</artifactId>
-	        <version>${mapstruct.version}</version>
-	    </dependency>
+        <!-- mapstruct-processor 는 annotationProcessorPaths 로 이동 (아래 maven-compiler-plugin 참고) -->
 
         <!-- ── API 문서화 ─────────────────────────────────────────────────────── -->
         <dependency>
@@ -95,6 +91,31 @@
 
     <build>
         <plugins>
+            <!--
+                애노테이션 프로세서 실행 순서 보장:
+                  Lombok 이 먼저 실행되어 @Getter/@Builder 등을 생성 →
+                  MapStruct 가 그 결과를 참조해 Mapper 구현체 생성
+                순서가 잘못되면 MapStruct 가 Lombok 생성 메서드를 못 찾아 컴파일 오류 발생
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
