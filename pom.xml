@@ -81,6 +81,17 @@
           Spring MVC 프레임워크 + 내장 Tomcat 서버 포함 패키지.
           이 하나로: 내장 웹서버 + HTTP 요청 라우팅 + JSON 직렬화(@ResponseBody) 모두 가능.
           @RestController, @GetMapping, @PostMapping 등이 이 의존성에서 온다.
+
+          ── 자동설정 (별도 설정 없이 즉시 동작) ────────────────────────────
+            - 내장 Tomcat이 기본 포트 8080에서 자동 기동 (web.xml, server.xml 불필요)
+            - Jackson 자동 등록 → 객체 ↔ JSON 변환 (@RequestBody / @ResponseBody)
+            - DispatcherServlet, MVC 메시지 컨버터, 정적 리소스 핸들러 자동 등록
+            - 예외 발생 시 기본 ErrorPage(/error) 자동 매핑
+
+          ── 간단 커스터마이징 ─────────────────────────────────────────────
+            server.port: 8081                       # application.yml에서 한 줄로 포트 변경
+            spring.mvc.servlet.path: /api           # 모든 컨트롤러 prefix 추가
+            spring.jackson.date-format: yyyy-MM-dd  # 날짜 직렬화 포맷
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -93,6 +104,16 @@
           컨트롤러에서 ModelAndView 또는 String(뷰 이름)을 반환하면
           src/main/resources/templates/*.html 파일을 찾아 HTML로 렌더링.
           (React/Vue 같은 SPA가 아닌, 서버가 HTML을 직접 생성하는 전통적인 MVC 방식)
+
+          ── 자동설정 (별도 설정 없이 즉시 동작) ────────────────────────────
+            - ViewResolver가 자동 등록되어 컨트롤러 반환값(String) → templates/{값}.html 매핑
+            - 기본 prefix: classpath:/templates/  /  기본 suffix: .html
+            - HTML 이스케이프, UTF-8 인코딩, Spring Security 다이얼렉트(있을 때) 자동 적용
+            - 운영 환경에서는 캐시 자동 활성화 (성능 ↑)
+
+          ── 간단 커스터마이징 ─────────────────────────────────────────────
+            spring.thymeleaf.cache: false           # 로컬에서 템플릿 즉시 반영 (이미 적용)
+            spring.thymeleaf.prefix: classpath:/views/   # 템플릿 위치 변경
         -->
 	    <dependency>
 	        <groupId>org.springframework.boot</groupId>
@@ -109,6 +130,17 @@
             - XML 매퍼 (resources/static/mybatis/mapper/**/*.xml): 실제 SQL 작성
           조인이 복잡하거나 SQL 최적화가 중요한 프로젝트에 적합.
           version: Spring Boot BOM에 없어서 직접 명시.
+
+          ── 자동설정 (별도 설정 없이 즉시 동작) ────────────────────────────
+            - SqlSessionFactory, SqlSessionTemplate 자동 등록 (DataSource 만 있으면 OK)
+            - @Mapper 어노테이션이 붙은 인터페이스를 classpath 에서 자동 스캔
+              → @MapperScan 같은 별도 어노테이션 불필요
+            - 인터페이스의 프록시 빈을 만들어 @Autowired 로 바로 주입 가능
+
+          ── 간단 커스터마이징 (이미 application.yml에 적용됨) ─────────────
+            mybatis.mapper-locations: classpath:/static/mybatis/mapper/**/*.xml   # XML 위치
+            mybatis.type-aliases-package: com.example.demo                       # 별칭 패키지
+            mybatis.configuration.map-underscore-to-camel-case: true             # snake_case → camelCase
         -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
@@ -128,6 +160,20 @@
           데이터 정합성에 문제가 없다 (둘 다 Spring 트랜잭션 매니저 위에서 동작).
 
           엔티티는 @Entity + MyBatis @Alias 를 동시에 가져 양쪽에서 모두 사용 가능.
+
+          ── 자동설정 (별도 설정 없이 즉시 동작) ────────────────────────────
+            - DataSource(HikariCP)와 EntityManagerFactory 자동 구성
+            - JpaTransactionManager + @Transactional 지원 자동 활성화
+            - @Entity 클래스를 main 패키지 하위에서 자동 스캔
+            - JpaRepository 를 상속한 인터페이스의 구현체 빈을 런타임에 자동 생성
+              → save(), findById(), findAll(), delete() 등을 코드 한 줄 없이 사용
+            - 메서드 이름 규칙(findByEmail, countByStatus 등)으로 쿼리 자동 생성
+
+          ── 간단 커스터마이징 (application.yml 한두 줄) ───────────────────
+            spring.jpa.hibernate.ddl-auto: validate          # 운영 표준 (자동 변경 X)
+            spring.jpa.show-sql: true                        # 실행 SQL 콘솔 출력
+            spring.jpa.properties.hibernate.format_sql: true # SQL 포맷팅
+            spring.jpa.open-in-view: false                   # OSIV 끄기 (N+1 사고 예방)
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -140,6 +186,12 @@
           scope=runtime: 소스코드에서 직접 import하지 않고 Spring이 내부적으로 사용.
             컴파일 시에는 불필요하지만 실행 시에는 반드시 있어야 함.
           버전은 Spring Boot BOM이 관리 → <version> 생략.
+
+          ── 자동설정 ────────────────────────────────────────────────────────
+            - classpath 에 JDBC 드라이버가 존재하면 Spring Boot 가 자동 감지
+              → DataSource 빈을 HikariCP 커넥션 풀로 자동 생성
+            - spring.datasource.url 의 jdbc:mariadb:// 접두사로 드라이버 클래스 자동 추론
+              (driver-class-name 명시 불필요. 명시해도 무해)
         -->
 		<dependency>
 			<groupId>org.mariadb.jdbc</groupId>
@@ -185,6 +237,16 @@
           별도 문서 작성 없이 API 목록, 요청/응답 스펙, 직접 테스트 UI를 제공.
           접속 URL: http://localhost:8081/swagger-ui.html (application.yml에서 경로 설정)
           version: Spring Boot BOM에 없어서 직접 명시.
+
+          ── 자동설정 (별도 설정 없이 즉시 동작) ────────────────────────────
+            - @RestController 가 붙은 모든 클래스를 스캔해 OpenAPI 스펙 자동 생성
+            - /swagger-ui.html (UI) + /v3/api-docs (JSON 스펙) 엔드포인트 자동 노출
+            - @Operation, @Parameter, @Schema 등의 어노테이션을 인식해 설명 보강
+
+          ── 간단 커스터마이징 (이미 application.yml에 적용됨) ─────────────
+            springdoc.swagger-ui.path: /swagger-ui.html      # UI 진입 URL
+            springdoc.api-docs.path: /api-docs               # JSON 스펙 URL
+            springdoc.swagger-ui.operations-sorter: alpha    # API 알파벳 정렬
         -->
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -204,6 +266,18 @@
             /actuator/info              앱 버전, 빌드 시간 등 메타정보
             /actuator/metrics           Prometheus 연동용 메트릭 데이터
           노출 범위는 application-prod.yml에서 제한 (prod에서는 민감 정보 보호).
+
+          ── 자동설정 (별도 설정 없이 즉시 동작) ────────────────────────────
+            - 의존성만 추가하면 /actuator/health 가 즉시 활성화
+            - DataSource, Redis 등 등록된 컴포넌트의 상태를 health 에 자동 통합
+              → DB 다운 시 health 가 자동으로 DOWN 응답 (K8s probe 가 자동 인식)
+            - Micrometer 가 JVM/HTTP 메트릭을 자동 수집 → /actuator/metrics 에 노출
+            - 기본 노출 엔드포인트: health, info 만 (보안 기본값)
+
+          ── 간단 커스터마이징 (이미 application-prod.yml에 적용됨) ────────
+            management.endpoints.web.exposure.include: health,info,metrics
+            management.endpoint.health.show-details: when-authorized
+            management.endpoint.health.probes.enabled: true   # K8s readiness/liveness 활성화
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -218,6 +292,18 @@
           scope=test: 테스트 컴파일/실행에만 사용. 최종 JAR에는 포함되지 않음.
           포함 라이브러리: JUnit 5(테스트 프레임워크), Mockito(모킹), AssertJ(검증),
                           Spring MockMvc(컨트롤러 테스트), Spring Boot Test(통합 테스트)
+
+          ── 자동설정 (별도 설정 없이 즉시 동작) ────────────────────────────
+            - @SpringBootTest        : 전체 컨텍스트 로딩 통합 테스트
+            - @DataJpaTest           : JPA 슬라이스 테스트 (DataSource + Repository 만 로딩)
+            - @WebMvcTest            : 컨트롤러 슬라이스 테스트 (서비스 mock 자동 권장)
+            - @MockBean / @SpyBean   : 컨텍스트 안의 빈을 Mockito 로 자동 대체
+            - MockMvc                : 실제 서버 띄우지 않고 HTTP 요청/응답 시뮬레이션
+            - TestRestTemplate       : @SpringBootTest(webEnvironment=RANDOM_PORT) 와 함께 자동 주입
+
+          ── 간단 사용 패턴 ────────────────────────────────────────────────
+            @SpringBootTest @ActiveProfiles("test")          // → H2 인메모리 DB 자동 사용
+            class MemberApplicationTests { ... }
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -231,6 +317,12 @@
           scope=test: 테스트 코드에서만 사용. 최종 JAR에 포함되지 않음.
           사용 이유: Jenkins CI 서버에 MariaDB가 없어도 Spring 컨텍스트 로딩 테스트 가능.
           application-test.yml에서 MODE=MariaDB로 MariaDB SQL 문법을 흉내냄.
+
+          ── 자동설정 ────────────────────────────────────────────────────────
+            - classpath에 H2 가 있고 명시적 DataSource 설정이 없으면
+              Spring Boot 가 자동으로 jdbc:h2:mem:testdb URL 의 DataSource 생성
+            - JPA 와 함께 사용 시 spring.jpa.hibernate.ddl-auto: create-drop 가 기본값
+              → 매 테스트마다 스키마 재생성 (테스트 격리 자동 보장)
         -->
         <dependency>
             <groupId>com.h2database</groupId>
@@ -249,6 +341,16 @@
             - 자동 재시작: 클래스 파일 변경 감지 시 서버 재시작 (전체 재기동보다 빠름)
             - LiveReload : 정적 리소스/템플릿 변경 시 브라우저 자동 새로고침 (포트 35729)
             - 캐시 비활성화: Thymeleaf 템플릿 캐시 자동 OFF (application-local.yml과 중복이지만 안전망)
+
+          ── 자동설정 (별도 설정 없이 즉시 동작) ────────────────────────────
+            - 의존성만 추가하면 IDE 가 컴파일한 .class 변경을 감지해 컨텍스트 자동 재시작
+            - 운영 JAR (java -jar) 실행 시 devtools 는 자동 비활성화 (안전)
+            - LiveReload 서버가 포트 35729 에서 자동 기동
+              → 브라우저에 LiveReload 확장 설치하면 코드 저장만으로 새로고침
+
+          ── 간단 커스터마이징 (필요 시) ───────────────────────────────────
+            spring.devtools.restart.enabled: false   # 자동 재시작 끄기
+            spring.devtools.livereload.enabled: false  # LiveReload 끄기
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
