@@ -5,15 +5,27 @@ pipeline {
     parameters {
         choice(
             name: 'DEPLOY_METHOD',
-            choices: ['local-windows-folder', 'local-windows-docker', 'local-docker', 'remote-ssh', 'dockerhub-compose', 'kubernetes', 'onpremise-zip', 'onpremise-docker'],
+            choices: [
+                'local-jar',
+                'local-jar-docker',
+                'local-docker',
+                'server-jar',
+                'server-jar-zip',
+                'server-docker',
+                'server-k8s',
+                'package-zip',
+                'package-docker'
+            ],
             description: '''── 배포 방법을 선택하세요 ──────────────────────────────────────────
 
-  local-windows-folder
+  [ 내 PC에 배포 ]
+
+  local-jar
     빌드된 JAR 파일을 이 PC의 Windows 폴더에 복사 (앱 실행 X, 파일만 저장)
     결과 → C:\\SJSJSS\\Project\\01.File\\StarterMavenProject\\app.jar
     사전 조건 : Jenkins 컨테이너에 해당 폴더 볼륨 마운트 설정 필요
 
-  local-windows-docker
+  local-jar-docker
     JAR를 Windows 폴더에 저장하고 Docker 이미지로 만들어 컨테이너로 즉시 실행
     결과 1 → C:\\SJSJSS\\Project\\01.File\\StarterMavenProject\\app.jar (파일 저장)
     결과 2 → http://localhost:8081 (컨테이너 실행)
@@ -24,29 +36,39 @@ pipeline {
     결과 → 브라우저에서 http://localhost:8081 로 바로 접속 가능
     사전 조건 : Docker Desktop 실행 중
 
-  remote-ssh
-    빌드된 JAR 파일을 외부 리눅스 서버에 전송한 뒤 서버에서 앱 자동 실행
+  [ 원격 서버에 배포 ]
+
+  server-jar
+    빌드된 JAR 파일만 원격 서버에 SSH로 전송 후 앱 자동 실행 (설정 파일 별도 관리)
     결과 → 원격 서버에서 앱 구동 (서버 IP:8081 접속)
     사전 조건 : Jenkinsfile 내 REMOTE_HOST/USER/PATH 설정 + SSH 키 등록
 
-  dockerhub-compose  ★ 현업 표준 (중소규모/SaaS)
+  server-jar-zip  ★ B2B 고객사 서버 자동 배포
+    온프레미스 ZIP 패키지(JAR + 설정 + 스크립트)를 원격 서버에 전송 후 자동 설치/업데이트
+    결과 → 원격 서버에서 app.jar + bin/ + mapper/ 업데이트, 앱 재시작
+    특징 : config/application.yml 은 최초 1회만 복사 (이후 업데이트 시 기존 설정 보존)
+    사전 조건 : Jenkinsfile 내 REMOTE_HOST/USER/PATH 설정 + SSH 키 등록
+
+  server-docker  ★ 현업 표준 (중소규모/SaaS)
     Docker 이미지를 빌드해 Docker Hub에 올린 뒤 원격 서버에서 docker-compose로 실행
     결과 → 원격 서버에서 컨테이너 구동 (서버 IP:8081 접속)
     사전 조건 : Docker Hub Credentials(dockerhub-credentials) + SSH 키(deploy-server-ssh) 등록
 
-  kubernetes  ★ 현업 표준 (대규모/클라우드/SaaS)
+  server-k8s  ★ 현업 표준 (대규모/클라우드/SaaS)
     Docker 이미지를 빌드해 레지스트리에 올린 뒤 Kubernetes 클러스터에 자동 배포
     결과 → K8s 클러스터에서 롤링 업데이트 구동 (LoadBalancer IP:80 접속)
     사전 조건 : K8s 클러스터 + kubeconfig Credentials(kubeconfig) + Docker Hub Credentials 등록
 
-  onpremise-zip  ★ B2B 고객사 설치형 (JAR 패키지)
+  [ 고객사 납품용 패키지 생성 ]
+
+  package-zip  ★ B2B 고객사 설치형 (JAR 패키지)
     JAR + 설정 파일 템플릿 + SQL 매퍼 + 시작/종료 스크립트를 ZIP으로 패키징
     결과 → {앱명}-{버전}-release.zip (Jenkins Artifacts에서 다운로드)
     내용 : app.jar / config/application.yml / mapper/*.xml / bin/start.sh 등
     사용 : 고객사 서버에 JDK 17만 있으면 ZIP 해제 후 config 수정 → 실행
     사전 조건 : 없음 (빌드만 되면 즉시 사용 가능)
 
-  onpremise-docker  ★ B2B 고객사 설치형 (Docker 패키지)
+  package-docker  ★ B2B 고객사 설치형 (Docker 패키지)
     Docker 이미지를 tar.gz로 저장하고 docker-compose와 함께 ZIP으로 패키징
     결과 → {앱명}-{버전}-docker-release.zip (Jenkins Artifacts에서 다운로드)
     내용 : image.tar.gz / docker-compose.yml / INSTALL.md / load-and-run.sh
@@ -63,21 +85,21 @@ pipeline {
         DOCKER_IMAGE  = "your-dockerhub-id/${APP_NAME}"   // ← DockerHub ID로 변경
         DOCKER_TAG    = "${env.BUILD_NUMBER}"
 
-        // [local-docker / local-windows-docker] 컨테이너 이름
+        // [local-docker / local-jar-docker] 컨테이너 이름
         LOCAL_CONTAINER = 'spring-app'
 
-        // [remote-ssh / dockerhub-compose] 원격 서버 정보
+        // [server-jar / server-jar-zip / server-docker] 원격 서버 정보
         REMOTE_HOST   = '원격서버IP'                       // ← 원격 서버 IP로 변경
         REMOTE_USER   = 'ubuntu'                           // ← 원격 서버 계정으로 변경
         REMOTE_PATH   = '/home/ubuntu/app'
 
-        // [local-docker / local-windows-docker] DB Credentials ID
+        // [local-docker / local-jar-docker] DB Credentials ID
         DB_CREDENTIALS = 'db-credentials'
 
-        // [dockerhub-compose / kubernetes] Docker Hub Credentials ID
+        // [server-docker / server-k8s] Docker Hub Credentials ID
         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
 
-        // [kubernetes] kubeconfig Credentials ID & 네임스페이스
+        // [server-k8s] kubeconfig Credentials ID & 네임스페이스
         KUBECONFIG_CREDENTIALS = 'kubeconfig'
         K8S_NAMESPACE          = 'default'
     }
@@ -179,7 +201,7 @@ pipeline {
         stage('Docker Build') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['local-docker', 'local-windows-docker', 'dockerhub-compose', 'kubernetes', 'onpremise-docker']
+                    params.DEPLOY_METHOD in ['local-docker', 'local-jar-docker', 'server-docker', 'server-k8s', 'package-docker']
                 }
             }
             steps {
@@ -193,7 +215,7 @@ pipeline {
         stage('Image Security Scan') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['local-docker', 'local-windows-docker', 'dockerhub-compose', 'kubernetes', 'onpremise-docker']
+                    params.DEPLOY_METHOD in ['local-docker', 'local-jar-docker', 'server-docker', 'server-k8s', 'package-docker']
                 }
             }
             steps {
@@ -207,11 +229,11 @@ pipeline {
             }
         }
 
-        // ⑦ Docker Hub Push (dockerhub-compose / kubernetes 공통)
+        // ⑦ Docker Hub Push (server-docker / server-k8s 공통)
         stage('Docker Hub Push') {
             when {
                 expression {
-                    params.DEPLOY_METHOD in ['dockerhub-compose', 'kubernetes']
+                    params.DEPLOY_METHOD in ['server-docker', 'server-k8s']
                 }
             }
             steps {
@@ -247,11 +269,13 @@ pipeline {
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [local-windows-folder] 빌드된 JAR를 Windows 폴더에 복사 (실행 X)
+        // [local-jar] 빌드된 JAR를 내 PC Windows 폴더에 복사 (앱 실행 X)
+        //   사전 조건 : Jenkins 컨테이너 실행 시 볼륨 마운트 필요
+        //     -v "C:\SJSJSS\Project\01.File\StarterMavenProject:/var/deploy"
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: Local Windows Folder') {
+        stage('Deploy: local-jar') {
             when {
-                expression { params.DEPLOY_METHOD == 'local-windows-folder' }
+                expression { params.DEPLOY_METHOD == 'local-jar' }
             }
             steps {
                 sh """
@@ -286,11 +310,12 @@ PS1EOF
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [local-windows-docker] JAR를 Windows 폴더에 저장 + Docker 컨테이너로 즉시 실행
+        // [local-jar-docker] JAR를 내 PC 폴더에 저장 + Docker 컨테이너로 즉시 실행
+        //   사전 조건 : Jenkins 볼륨 마운트 + Docker Desktop + db-credentials 등록
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: Local Windows Docker') {
+        stage('Deploy: local-jar-docker') {
             when {
-                expression { params.DEPLOY_METHOD == 'local-windows-docker' }
+                expression { params.DEPLOY_METHOD == 'local-jar-docker' }
             }
             steps {
                 script {
@@ -347,9 +372,10 @@ PS1EOF
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [local-docker] Docker 이미지 빌드 후 현재 PC에서 컨테이너로 즉시 실행
+        // [local-docker] Docker 이미지 빌드 후 내 PC에서 컨테이너로 즉시 실행
+        //   사전 조건 : Docker Desktop + db-credentials 등록
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: Local Docker') {
+        stage('Deploy: local-docker') {
             when {
                 expression { params.DEPLOY_METHOD == 'local-docker' }
             }
@@ -396,13 +422,13 @@ PS1EOF
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [remote-ssh] 원격 서버에 JAR 전송 후 자동 실행
+        // [server-jar] 원격 서버에 JAR만 SSH 전송 후 자동 실행
         //   사전 조건 : Jenkins Credentials에 'deploy-server-ssh' 등록
         //             Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 설정
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: Remote SSH') {
+        stage('Deploy: server-jar') {
             when {
-                expression { params.DEPLOY_METHOD == 'remote-ssh' }
+                expression { params.DEPLOY_METHOD == 'server-jar' }
             }
             steps {
                 script {
@@ -451,16 +477,127 @@ PS1EOF
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [dockerhub-compose] Docker Hub 이미지를 원격 서버에서 docker-compose로 실행
+        // [server-jar-zip] 온프레미스 ZIP 패키지를 원격 서버에 전송 후 자동 설치/업데이트
+        //   최초 설치 : config/application.yml 복사 후 수동 DB 설정 안내
+        //   업데이트  : app.jar + bin/ + mapper/ 만 교체, config/는 기존 설정 보존
+        //   사전 조건 : Jenkins Credentials에 'deploy-server-ssh' 등록
+        //             Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 설정
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        stage('Deploy: server-jar-zip') {
+            when {
+                expression { params.DEPLOY_METHOD == 'server-jar-zip' }
+            }
+            steps {
+                script {
+                    try {
+                        withCredentials([sshUserPrivateKey(
+                            credentialsId: 'deploy-server-ssh',
+                            keyFileVariable:  'SSH_KEY',
+                            usernameVariable: 'SSH_USER'
+                        )]) {
+                            sh """
+                                # ── 1. 온프레미스 ZIP 빌드 ──────────────────────────────
+                                echo "── 온프레미스 패키지 빌드 중..."
+                                mvn package -Ponpremise -q
+
+                                ZIP_FILE=\$(ls target/*-release.zip | head -1)
+                                ZIP_NAME=\$(basename "\$ZIP_FILE")
+                                echo "   ZIP: \$ZIP_FILE (\$(du -sh "\$ZIP_FILE" | cut -f1))"
+
+                                # ── 2. 원격 서버에 전송 ──────────────────────────────────
+                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    ${REMOTE_USER}@${REMOTE_HOST} \\
+                                    "mkdir -p ${REMOTE_PATH}/releases"
+
+                                echo "── ZIP 전송 중..."
+                                scp -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    "\$ZIP_FILE" \\
+                                    ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/releases/
+
+                                # ── 3. 원격 서버에서 설치/업데이트 ─────────────────────
+                                ssh -i \$SSH_KEY -o StrictHostKeyChecking=no \\
+                                    ${REMOTE_USER}@${REMOTE_HOST} << 'REMOTE_SCRIPT'
+                                        set -e
+                                        APP_DIR="${REMOTE_PATH}/current"
+                                        ZIP_PATH="${REMOTE_PATH}/releases/${ZIP_NAME}"
+
+                                        # 기존 앱 종료
+                                        if [ -f "\$APP_DIR/app.pid" ]; then
+                                            APP_PID=\$(cat "\$APP_DIR/app.pid")
+                                            echo "[INFO] 기존 앱 종료 중 (PID: \$APP_PID)..."
+                                            kill -TERM "\$APP_PID" 2>/dev/null || true
+                                            sleep 5
+                                            kill -9 "\$APP_PID" 2>/dev/null || true
+                                            rm -f "\$APP_DIR/app.pid"
+                                        fi
+
+                                        # ZIP 압축 해제 (임시 디렉터리)
+                                        echo "[INFO] 새 패키지 압축 해제..."
+                                        TEMP_DIR=\$(mktemp -d)
+                                        unzip -q "\$ZIP_PATH" -d "\$TEMP_DIR"
+                                        SRC_DIR="\$TEMP_DIR/\$(ls "\$TEMP_DIR")"
+
+                                        # app.jar, bin/, mapper/ 업데이트
+                                        mkdir -p "\$APP_DIR"
+                                        cp "\$SRC_DIR/app.jar" "\$APP_DIR/app.jar"
+                                        cp -r "\$SRC_DIR/bin"  "\$APP_DIR/"
+                                        chmod +x "\$APP_DIR/bin/"*.sh
+                                        [ -d "\$SRC_DIR/mapper" ] && cp -r "\$SRC_DIR/mapper" "\$APP_DIR/"
+
+                                        # config/는 최초 설치 시에만 복사 (이후 기존 설정 보존)
+                                        if [ ! -f "\$APP_DIR/config/application.yml" ]; then
+                                            echo "[INFO] 최초 설치: config/ 복사"
+                                            cp -r "\$SRC_DIR/config" "\$APP_DIR/"
+                                            rm -rf "\$TEMP_DIR"
+                                            echo ""
+                                            echo "========================================"
+                                            echo "  ⚠ 최초 설치 완료 — DB 설정 필요"
+                                            echo "  1. 설정 편집: nano \$APP_DIR/config/application.yml"
+                                            echo "  2. 앱 시작  : \$APP_DIR/bin/start.sh"
+                                            echo "========================================"
+                                            exit 0
+                                        fi
+
+                                        rm -rf "\$TEMP_DIR"
+
+                                        # 앱 시작
+                                        echo "[INFO] 앱 시작 중..."
+                                        "\$APP_DIR/bin/start.sh"
+                                        echo "✅ 업데이트 배포 완료"
+REMOTE_SCRIPT
+
+                                echo ""
+                                echo "✅ server-jar-zip 배포 완료"
+                                echo "   서버 : ${REMOTE_HOST}"
+                                echo "   경로 : ${REMOTE_PATH}/current"
+                            """
+                        }
+                    } catch (Exception e) {
+                        echo "⚠ server-jar-zip 배포 실패"
+                        echo "  원인: ${e.message}"
+                        echo "  ── 확인 사항 ──────────────────────────────────────"
+                        echo "  Jenkins 관리 → Credentials → Global → Add Credentials"
+                        echo "    Kind    : SSH Username with private key"
+                        echo "    ID      : deploy-server-ssh"
+                        echo "  Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 값 설정"
+                        echo "  ───────────────────────────────────────────────────"
+                        unstable("server-jar-zip 배포 실패: ${e.message}")
+                    }
+                }
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // [server-docker] Docker Hub 이미지를 원격 서버에서 docker-compose로 실행
         //   사전 조건 :
         //     - Jenkins Credentials에 'dockerhub-credentials' (Username/Password) 등록
         //     - Jenkins Credentials에 'deploy-server-ssh' (SSH Key) 등록
         //     - Jenkinsfile 상단 REMOTE_HOST / REMOTE_USER / REMOTE_PATH 설정
         //     - Jenkinsfile 상단 DOCKER_IMAGE에 실제 DockerHub ID 입력
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: DockerHub + Compose') {
+        stage('Deploy: server-docker') {
             when {
-                expression { params.DEPLOY_METHOD == 'dockerhub-compose' }
+                expression { params.DEPLOY_METHOD == 'server-docker' }
             }
             steps {
                 script {
@@ -494,7 +631,7 @@ PS1EOF
                             """
                         }
                     } catch (Exception e) {
-                        echo "⚠ DockerHub+Compose 배포 실패"
+                        echo "⚠ server-docker 배포 실패"
                         echo "  원인: ${e.message}"
                         echo "  ── 확인 사항 ──────────────────────────────────────"
                         echo "  1. Jenkins Credentials 'dockerhub-credentials' 등록 확인"
@@ -502,23 +639,23 @@ PS1EOF
                         echo "  3. 원격 서버에 Docker + docker-compose 설치 확인"
                         echo "  4. Jenkinsfile 상단 REMOTE_HOST / DOCKER_IMAGE 값 설정"
                         echo "  ───────────────────────────────────────────────────"
-                        unstable("DockerHub+Compose 배포 실패: ${e.message}")
+                        unstable("server-docker 배포 실패: ${e.message}")
                     }
                 }
             }
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [kubernetes] Kubernetes 클러스터에 롤링 배포
+        // [server-k8s] Kubernetes 클러스터에 롤링 배포
         //   사전 조건 :
         //     - Jenkins Credentials에 'dockerhub-credentials' (Username/Password) 등록
         //     - Jenkins Credentials에 'kubeconfig' (Secret file: ~/.kube/config) 등록
         //     - deploy/k8s/secret.yaml의 DB 접속 정보 실제 값으로 교체 후 커밋
         //     - Jenkinsfile 상단 DOCKER_IMAGE에 실제 DockerHub ID 입력
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: Kubernetes') {
+        stage('Deploy: server-k8s') {
             when {
-                expression { params.DEPLOY_METHOD == 'kubernetes' }
+                expression { params.DEPLOY_METHOD == 'server-k8s' }
             }
             steps {
                 script {
@@ -550,7 +687,7 @@ PS1EOF
                             """
                         }
                     } catch (Exception e) {
-                        echo "⚠ Kubernetes 배포 실패"
+                        echo "⚠ server-k8s 배포 실패"
                         echo "  원인: ${e.message}"
                         echo "  ── 확인 사항 ──────────────────────────────────────"
                         echo "  Jenkins 관리 → Credentials → Global → Add Credentials"
@@ -559,21 +696,21 @@ PS1EOF
                         echo "    File    : ~/.kube/config 파일 업로드"
                         echo "  deploy/k8s/secret.yaml DB 접속 정보 실제 값으로 설정 확인"
                         echo "  ───────────────────────────────────────────────────"
-                        unstable("Kubernetes 배포 실패: ${e.message}")
+                        unstable("server-k8s 배포 실패: ${e.message}")
                     }
                 }
             }
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [onpremise-zip] 고객사 설치형 JAR 릴리즈 패키지 생성
+        // [package-zip] 고객사 설치형 JAR 릴리즈 패키지 생성
         //   내용: app.jar + config/application.yml + mapper/*.xml + bin 스크립트
         //   결과: {앱명}-{버전}-release.zip → Jenkins Artifacts에서 다운로드
         //   사전 조건: 없음 (빌드 성공 후 바로 사용 가능)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: On-Premise ZIP') {
+        stage('Deploy: package-zip') {
             when {
-                expression { params.DEPLOY_METHOD == 'onpremise-zip' }
+                expression { params.DEPLOY_METHOD == 'package-zip' }
             }
             steps {
                 sh """
@@ -584,7 +721,7 @@ PS1EOF
 
                     ZIP_FILE=\$(ls target/*-release.zip | head -1)
                     echo ""
-                    echo "✅ 온프레미스 JAR 패키지 생성 완료"
+                    echo "✅ 고객사 JAR 패키지 생성 완료"
                     echo "   파일명 : \$ZIP_FILE"
                     echo "   크기   : \$(du -sh "\$ZIP_FILE" | cut -f1)"
                     echo "   Jenkins Artifacts 탭에서 다운로드 가능"
@@ -594,19 +731,18 @@ PS1EOF
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // [onpremise-docker] 고객사 설치형 Docker 릴리즈 패키지 생성
+        // [package-docker] 고객사 설치형 Docker 릴리즈 패키지 생성
         //   내용: Docker 이미지 tar.gz + docker-compose.yml + 설치 스크립트
         //   결과: {앱명}-{버전}-docker-release.zip → Jenkins Artifacts에서 다운로드
         //   특징: 인터넷이 없는 폐쇄망 고객사에서도 Docker만 있으면 즉시 설치 가능
         //   사전 조건: Docker Build 스테이지 성공 후 실행 (자동으로 포함됨)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        stage('Deploy: On-Premise Docker') {
+        stage('Deploy: package-docker') {
             when {
-                expression { params.DEPLOY_METHOD == 'onpremise-docker' }
+                expression { params.DEPLOY_METHOD == 'package-docker' }
             }
             steps {
                 sh """
-                    # 프로젝트 버전을 pom.xml에서 추출
                     APP_VER=\$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
                     PKG_NAME="${APP_NAME}-\${APP_VER}-docker"
                     PKG_DIR="dist/\${PKG_NAME}"
@@ -616,22 +752,15 @@ PS1EOF
                     mkdir -p "\$PKG_DIR"
 
                     # ── Docker 이미지를 tar.gz로 저장 ────────────────────────
-                    # docker save: 이미지를 파일로 내보냄 (모든 레이어 포함)
-                    # gzip: 압축해서 파일 크기 줄임 (30~60% 압축률)
-                    # → 인터넷 없는 고객사 서버에서 'docker load'로 즉시 설치 가능
                     echo "── Docker 이미지 저장 중... (수 분 소요될 수 있음)"
                     docker save ${DOCKER_IMAGE}:${DOCKER_TAG} | gzip > "\$PKG_DIR/image.tar.gz"
                     echo "   이미지 크기: \$(du -sh "\$PKG_DIR/image.tar.gz" | cut -f1)"
 
-                    # ── docker-compose 파일 복사 ──────────────────────────────
-                    echo "── docker-compose.yml 복사"
+                    # ── docker-compose 파일 + 설치 가이드 복사 ────────────────
                     cp deploy/onpremise/docker-compose.yml "\$PKG_DIR/"
-
-                    # ── 설치 가이드 복사 ──────────────────────────────────────
                     cp deploy/onpremise/INSTALL.md "\$PKG_DIR/"
 
                     # ── Linux 원클릭 설치 스크립트 생성 ─────────────────────
-                    # 고객이 복잡한 명령어 없이 한 번의 실행으로 설치 완료
                     cat > "\$PKG_DIR/load-and-run.sh" << 'SHEOF'
 #!/bin/bash
 set -e
@@ -652,8 +781,7 @@ echo "[3/3] 컨테이너 시작 중..."
 docker-compose up -d
 echo ""
 echo "=========================================="
-echo "  설치 완료!"
-echo "  브라우저에서 접속: http://localhost:8080"
+echo "  설치 완료! 브라우저에서 접속: http://localhost:8080"
 echo "  로그 확인: docker-compose logs -f"
 echo "=========================================="
 SHEOF
@@ -665,12 +793,11 @@ SHEOF
                     (cd dist && zip -r "../\$ZIP_FILE" "\${PKG_NAME}/")
 
                     echo ""
-                    echo "✅ 온프레미스 Docker 패키지 생성 완료"
+                    echo "✅ 고객사 Docker 패키지 생성 완료"
                     echo "   파일명 : \$ZIP_FILE"
                     echo "   크기   : \$(du -sh "\$ZIP_FILE" | cut -f1)"
                     echo "   Jenkins Artifacts 탭에서 다운로드 가능"
                     echo ""
-                    echo "── 패키지 내용 ─────────────────────────────"
                     ls -lh "\$PKG_DIR/"
                 """
                 archiveArtifacts artifacts: '*-docker-release.zip', fingerprint: true

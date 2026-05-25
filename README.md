@@ -340,15 +340,17 @@ mvnw.cmd spotbugs:check
 
 ### 배포 방법 선택 기준
 
-| 상황 | 권장 방법 |
-|---|---|
-| 로컬 PC에 JAR만 저장하고 싶을 때 | `local-windows-folder` |
-| 로컬 PC에서 Docker 컨테이너로 테스트할 때 | `local-docker` |
-| 내 회사 서버에 JAR 직접 배포할 때 | `remote-ssh` |
-| 내 회사 서버에 Docker로 배포할 때 ★ | `dockerhub-compose` |
-| 클라우드/대규모 서비스 배포할 때 ★ | `kubernetes` |
-| 고객사에 JAR + 스크립트 패키지로 납품할 때 | `onpremise-zip` |
-| 고객사에 Docker 이미지 패키지로 납품할 때 | `onpremise-docker` |
+| 그룹 | DEPLOY_METHOD | 상황 |
+|---|---|---|
+| **내 PC** | `local-jar` | 빌드된 JAR를 내 PC 폴더에만 저장 (앱 실행 X) |
+| **내 PC** | `local-jar-docker` | JAR 저장 + Docker 컨테이너로 즉시 실행 |
+| **내 PC** | `local-docker` | Docker 컨테이너로만 실행 (JAR 저장 X) |
+| **원격 서버** | `server-jar` | 원격 서버에 JAR만 SSH 배포 |
+| **원격 서버** | `server-jar-zip` | 원격 서버에 전체 패키지(JAR+설정+스크립트) SSH 배포 ★ |
+| **원격 서버** | `server-docker` | Docker Hub → 원격 서버 docker-compose 배포 ★ |
+| **원격 서버** | `server-k8s` | Docker Hub → Kubernetes 클러스터 롤링 배포 ★ |
+| **고객사 납품** | `package-zip` | JAR + 설정 + 스크립트를 ZIP으로 패키징 |
+| **고객사 납품** | `package-docker` | Docker 이미지를 tar.gz로 저장해 ZIP으로 패키징 |
 
 ---
 
