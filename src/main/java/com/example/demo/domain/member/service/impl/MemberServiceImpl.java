@@ -81,12 +81,14 @@ public class MemberServiceImpl implements MemberService {
         return memberMapper.toDto(saved);
     }
 
-    /** 수정 — 영속 엔티티를 가져와 변경 (Dirty Checking) */
+    /** 수정 — 존재 여부 확인 후 새 인스턴스로 교체 저장 */
     @Override
     public MemberResponseDto update(String id, MemberRequestDto requestDto) {
-        Member member = memberJpaRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("회원이 존재하지 않습니다."));
-        // Member 가 불변 객체이므로 새 인스턴스로 교체 후 save (필요 시 setter 추가하여 dirty checking 으로 전환 가능)
+        // Member 가 불변 객체이므로 dirty checking 대신 존재 검증 + 새 인스턴스 save 방식.
+        // 필요 시 Member 에 setter 를 추가하면 영속 엔티티를 fetch 해서 변경하는 패턴으로 전환 가능.
+        if (!memberJpaRepository.existsById(id)) {
+            throw new EntityNotFoundException("회원이 존재하지 않습니다.");
+        }
         Member updated = memberMapper.toEntity(requestDto);
         return memberMapper.toDto(memberJpaRepository.save(updated));
     }
