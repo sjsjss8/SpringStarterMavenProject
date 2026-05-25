@@ -1,80 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    회원 MyBatis 매퍼 — JPA로 표현이 까다로운 동적 검색만 담당.
+
+    단순 CRUD (findAll / findById / save / delete) 는 MemberJpaRepository 가 처리하므로
+    이 파일에서는 의도적으로 제외.
+-->
 <mapper namespace="com.example.demo.domain.member.repository.mybatis.MemberMybatisRepository">
-    
-    <select id="findAll" resultType="Member">
-		SELECT 
-		    id
-		    , name
-		    , email
-		FROM 
-		    Member
-    </select>
-    
+
+    <!--
+        동적 조건 검색 — 검색 타입(id/name/email)과 키워드가 런타임에 결정된다.
+        JPA 의 메서드 이름 규칙으로는 표현이 어려우므로 MyBatis 의 <choose>/<when> 사용.
+    -->
     <select id="search" parameterType="MemberRequestDto" resultType="Member">
-		SELECT 
-		    id
-		    , name
-		    , email
-		FROM 
-		    Member
-		<where>
-		    <if test="searchKeyword != null and searchKeyword != ''">
-		        <choose>
-		            <when test="searchType == 'id'">
-		                AND id like CONCAT('%', #{searchKeyword, jdbcType=VARCHAR}, '%')
-		            </when>
-		            <when test="searchType == 'name'">
-		                AND name like CONCAT('%', #{searchKeyword, jdbcType=VARCHAR}, '%')
-		            </when>
-		            <when test="searchType == 'email'">
-		                AND email like CONCAT('%', #{searchKeyword, jdbcType=VARCHAR}, '%')
-		            </when>
-		        </choose>
-		    </if>
-		</where>
+        SELECT
+            id
+            , name
+            , email
+        FROM
+            member
+        <where>
+            <if test="searchKeyword != null and searchKeyword != ''">
+                <choose>
+                    <when test="searchType == 'id'">
+                        AND id like CONCAT('%', #{searchKeyword, jdbcType=VARCHAR}, '%')
+                    </when>
+                    <when test="searchType == 'name'">
+                        AND name like CONCAT('%', #{searchKeyword, jdbcType=VARCHAR}, '%')
+                    </when>
+                    <when test="searchType == 'email'">
+                        AND email like CONCAT('%', #{searchKeyword, jdbcType=VARCHAR}, '%')
+                    </when>
+                </choose>
+            </if>
+        </where>
     </select>
-    
-    <select id="findById" parameterType="String" resultType="Member">
-		SELECT 
-		    id
-		    , name
-		    , email
-		FROM 
-		    Member
-		WHERE 
-		    id = #{id}
-    </select>
-    
-    <insert id="insert" parameterType="Member">
-		INSERT INTO Member (
-		    id
-		    , name
-		    , email
-		) VALUES (
-		    #{id}
-		    , #{name}
-		    , #{email}
-		)
-    </insert>
-    
-    <update id="update" parameterType="Member">
-		UPDATE Member 
-		SET 
-		    name = #{name}
-		<if test="email != null and email != ''">
-		    , email = #{email}
-		</if>
-		WHERE 
-		    id = #{id}
-    </update>
-    
-    <delete id="delete" parameterType="Member">
-		DELETE
-		FROM 
-		    Member 
-		WHERE 
-		    id = #{id}
-    </delete>
+
 </mapper>

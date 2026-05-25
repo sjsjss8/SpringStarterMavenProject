@@ -28,6 +28,13 @@ spring:
     username: ${DB_USERNAME}  # .env 파일의 DB_USERNAME. 기본값 없음 → 없으면 기동 실패 (의도적)
     password: ${DB_PASSWORD}  # .env 파일의 DB_PASSWORD. 기본값 없음 → 없으면 기동 실패 (의도적)
 
+  # ── JPA: 로컬에서는 SQL 로그를 켠다 (공통 설정은 application.yml) ──────────
+  jpa:
+    show-sql: true           # 실행되는 SQL을 콘솔에 출력 (로컬 디버깅용)
+    properties:
+      hibernate:
+        use_sql_comments: true  # JPQL 원문을 SQL 위에 주석으로 표시
+
   thymeleaf:
     cache: false           # 템플릿 캐시 비활성화. HTML 파일 수정 후 서버 재시작 없이 바로 반영됨
     prefix: classpath:/templates/  # HTML 파일 위치: src/main/resources/templates/
@@ -41,7 +48,8 @@ spring:
                        # 브라우저에 LiveReload 플러그인 설치 또는 Spring Tools Suite 사용
 
 
-# SQL 쿼리 콘솔 출력 (로컬에서만 활성화)
+# SQL 쿼리 콘솔 출력 (로컬에서만 활성화) — MyBatis용
+# (JPA SQL 출력은 위 spring.jpa.show-sql 에서 처리)
 # 실행되는 SQL을 콘솔에서 바로 확인 → 쿼리 디버깅 편리
 # 운영 환경에서는 성능 저하 + 민감 데이터 노출 위험 → 이 파일에서만 설정
 mybatis:

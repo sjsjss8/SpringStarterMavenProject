@@ -1,0 +1,81 @@
+# ============================================================
+# Helm Chart 기본값 (dev 환경 기준)
+# ============================================================
+# 역할:
+#   templates/*.yaml 에서 참조하는 모든 값의 기본값.
+#   환경별 override 는 values-prod.yaml 같은 파일을 -f 로 지정해 적용.
+#
+# 우선순위 (낮음 → 높음):
+#   1. values.yaml (이 파일)
+#   2. helm install/upgrade -f values-prod.yaml
+#   3. helm install/upgrade --set image.tag=42
+# ============================================================
+
+# ── 앱 식별 ────────────────────────────────────────────────────────────────
+nameOverride: ""              # 비워두면 Chart.name(spring-app) 사용
+fullnameOverride: ""          # 비워두면 release-name 기반 자동 생성
+
+# ── 복제본 수 ───────────────────────────────────────────────────────────────
+replicaCount: 2
+
+# ── 컨테이너 이미지 ─────────────────────────────────────────────────────────
+image:
+  repository: your-dockerhub-id/spring-starter-maven   # ← DockerHub ID 변경
+  tag: ""                     # Chart.yaml 의 appVersion 사용 (Jenkins 가 --set image.tag=BUILD_NUMBER 로 override)
+  pullPolicy: Always
+
+# ── 롤링 업데이트 전략 ──────────────────────────────────────────────────────
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1               # 업데이트 중 추가 허용 파드 수
+    maxUnavailable: 0         # 업데이트 중 불가용 허용 파드 수 (0 = 완전 무중단)
+
+# ── 컨테이너 포트 ───────────────────────────────────────────────────────────
+containerPort: 8081
+
+# ── 서비스 ──────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP             # dev 기본 ClusterIP. prod 는 LoadBalancer 로 override
+  port: 80                    # 서비스가 외부에 노출할 포트
+  targetPort: 8081            # 컨테이너 내부 포트
+
+# ── 자원 요구사항 ───────────────────────────────────────────────────────────
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "500m"
+
+# ── 종료 우아하게 처리 ─────────────────────────────────────────────────────
+terminationGracePeriodSeconds: 60
+
+# ── Probe ──────────────────────────────────────────────────────────────────
+probes:
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 3
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    failureThreshold: 3
+
+# ── 비민감 설정 (ConfigMap 에 저장) ─────────────────────────────────────────
+config:
+  SPRING_PROFILES_ACTIVE: "dev"
+  DB_HOST: "your-dev-db-host"
+  DB_PORT: "3306"
+  DB_NAME: "SJSJSS"
+
+# ── 민감 정보 (Secret 에 저장) ──────────────────────────────────────────────
+# ⚠ Git 에 평문 비밀번호를 커밋하지 말 것.
+#   - Sealed Secrets (kubeseal) 또는 External Secrets + Vault 사용 권장
+#   - 또는 CI 에서 --set secret.DB_PASSWORD=$DB_PASSWORD 로 주입
+secret:
+  DB_USERNAME: "CHANGE_ME"
+  DB_PASSWORD: "CHANGE_ME"

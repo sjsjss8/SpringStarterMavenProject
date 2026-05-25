@@ -29,6 +29,14 @@ spring:
     username: sa        # H2 기본 계정 (System Administrator)
     password:           # H2 기본 비밀번호 없음 (빈 값)
 
+  # ── JPA: 테스트는 H2 방언 + 매 실행마다 스키마 재생성 ───────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: create-drop   # 시작 시 스키마 생성, 종료 시 삭제 (테스트 격리)
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect   # application.yml의 MariaDBDialect를 override
+
 
 logging:
   level:

@@ -1,0 +1,67 @@
+# ============================================================
+# ArgoCD Application — 운영(prod) 환경
+# ============================================================
+# 역할:
+#   ArgoCD 가 이 매니페스트를 보고 Git 의 Helm Chart 와 K8s 클러스터 상태를
+#   지속적으로 비교(sync). Jenkins 가 values 파일을 Git 에 푸시하면 ArgoCD 가
+#   클러스터에 자동 반영한다.
+#
+# 워크플로우:
+#   ┌─ Jenkins ─┐         ┌─ Git Repo ─┐         ┌─ ArgoCD ─┐         ┌─ K8s ─┐
+#   │ 빌드 +    │  push   │ Helm Chart │ poll    │ 변경 감지 │  apply  │ 배포   │
+#   │ image.tag │ ──────► │ values.yaml│ ──────► │ + diff    │ ──────► │ 완료   │
+#   └───────────┘         └────────────┘         └───────────┘         └────────┘
+#
+# 설치:
+#   kubectl apply -f deploy/argocd/application-prod.yaml
+#
+# 상태 확인:
+#   kubectl get application -n argocd
+#   argocd app get spring-app-prod
+# ============================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spring-app-prod
+  namespace: argocd                   # ArgoCD 가 설치된 네임스페이스
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io  # 앱 삭제 시 K8s 리소스도 함께 정리
+
+spec:
+  project: default                    # ArgoCD Project (RBAC 그룹). 팀별로 분리 가능
+
+  # ── 소스: Git 의 Helm Chart 위치 ─────────────────────────────────────────
+  source:
+    repoURL: https://github.com/your-org/SpringbootProject.git   # ← 실제 Git 저장소
+    targetRevision: main              # 추적할 브랜치 / 태그
+    path: deploy/helm/spring-app      # Chart.yaml 의 디렉터리
+    helm:
+      releaseName: spring-app
+      valueFiles:
+        - values.yaml                 # 기본값
+        - values-prod.yaml            # prod 환경 override
+
+  # ── 목적지: 어느 클러스터의 어느 네임스페이스에 배포할지 ──────────────────
+  destination:
+    server: https://kubernetes.default.svc   # in-cluster ArgoCD 가 동작 중인 클러스터
+    namespace: production
+
+  # ── 동기화 정책 ────────────────────────────────────────────────────────────
+  syncPolicy:
+    automated:
+      prune: true                     # Git 에서 제거된 리소스는 클러스터에서도 자동 삭제
+      selfHeal: true                  # 누가 클러스터에서 수동 수정해도 Git 상태로 복구
+      allowEmpty: false               # 모든 리소스가 사라지는 sync 는 거부 (안전장치)
+
+    syncOptions:
+      - CreateNamespace=true          # production 네임스페이스가 없으면 자동 생성
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true                # 새 리소스 생성 완료 후에 구 리소스 prune
+
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

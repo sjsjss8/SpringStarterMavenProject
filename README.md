@@ -52,8 +52,9 @@ SpringbootProject/
 │   │   ├── java/com/example/demo/
 │   │   │   ├── ProjectApplication.java          # 앱 시작점
 │   │   │   ├── interfaces/                      # ① 표현 계층
-│   │   │   │   ├── api/v1/{domain}/             #   REST API 컨트롤러
-│   │   │   │   └── web/{domain}/                #   Thymeleaf MVC 컨트롤러
+│   │   │   │   ├── api/v1/{domain}/             #   ★ REST API 컨트롤러 (메인 인터페이스)
+│   │   │   │   ├── api/v2/                      #   향후 v2 API (scaffold)
+│   │   │   │   └── sample/web/{domain}/         #   Thymeleaf SSR 샘플 (학습용 격리)
 │   │   │   ├── application/                     # ② 응용 계층
 │   │   │   │   └── {domain}/
 │   │   │   │       ├── dto/request/             #   요청 DTO
@@ -61,10 +62,12 @@ SpringbootProject/
 │   │   │   │       └── mapper/                  #   MapStruct Entity↔DTO 변환
 │   │   │   ├── domain/                          # ③ 도메인 계층
 │   │   │   │   └── {domain}/
-│   │   │   │       ├── entity/                  #   엔티티 (DB 테이블 매핑)
+│   │   │   │       ├── entity/                  #   엔티티 (@Entity + @Alias 공존)
 │   │   │   │       ├── service/                 #   서비스 인터페이스
 │   │   │   │       ├── service/impl/            #   서비스 구현체
-│   │   │   │       └── repository/mybatis/      #   MyBatis @Mapper 인터페이스
+│   │   │   │       └── repository/
+│   │   │   │           ├── jpa/                 #   ★ JpaRepository (기본 CRUD)
+│   │   │   │           └── mybatis/             #   MyBatis (동적 SQL 전담)
 │   │   │   ├── infrastructure/                  # ④ 인프라 계층
 │   │   │   │   ├── db/mariadb/                  #   DB 설정 (scaffold)
 │   │   │   │   ├── db/redis/                    #   Redis 설정 (scaffold)
@@ -78,23 +81,25 @@ SpringbootProject/
 │   │   │       ├── error/GlobalExceptionHandler #   전역 예외 처리
 │   │   │       └── error/exception/             #   비즈니스 예외 클래스
 │   │   └── resources/
-│   │       ├── application.yml                  # 공통 설정
-│   │       ├── application-local.yml            # 로컬 개발 환경
+│   │       ├── application.yml                  # 공통 설정 (JPA validate, OSIV off)
+│   │       ├── application-local.yml            # 로컬 개발 환경 (JPA show-sql on)
 │   │       ├── application-dev.yml              # 개발 서버
 │   │       ├── application-prod.yml             # 운영 서버
 │   │       ├── static/
 │   │       │   ├── css/, js/                    # 정적 리소스
-│   │       │   └── mybatis/mapper/**/*.xml      # MyBatis SQL 매퍼
-│   │       └── templates/                       # Thymeleaf HTML 템플릿
+│   │       │   └── mybatis/mapper/**/*.xml      # MyBatis SQL 매퍼 (동적 쿼리만)
+│   │       └── templates/                       # Thymeleaf HTML 템플릿 (샘플용)
 │   └── test/
-│       └── resources/application-test.yml       # 테스트 환경 (H2)
+│       └── resources/application-test.yml       # 테스트 환경 (H2, ddl-auto=create-drop)
 │
 ├── deploy/                                      # 배포 관련 설정 모음
-│   ├── k8s/                                     #   Kubernetes 배포 매니페스트
-│   │   ├── deployment.yaml
-│   │   ├── service.yaml
-│   │   ├── configmap.yaml                       #   비민감 설정 (DB_HOST 등)
-│   │   └── secret.yaml                          #   민감 정보 (DB_PASSWORD 등)
+│   ├── helm/spring-app/                         #   ★ Helm Chart (K8s 표준 패키징)
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml                          #     기본값 (dev)
+│   │   ├── values-prod.yaml                     #     운영 override
+│   │   └── templates/                           #     Deployment / Service / ConfigMap / Secret
+│   ├── argocd/                                  #   ★ ArgoCD GitOps Application 매니페스트
+│   │   └── application-prod.yaml
 │   └── onpremise/                               #   B2B 고객사 설치형 패키지 소스
 │       ├── config/application.yml               #   고객사용 설정 템플릿
 │       ├── bin/                                 #   Linux / macOS 스크립트 (.sh)
@@ -114,7 +119,8 @@ SpringbootProject/
 ├── Dockerfile                                   # 멀티스테이지 이미지 빌드 (루트 필수)
 ├── docker-compose.yml                           # 로컬 Docker 개발용 (루트 관례)
 ├── docker-compose.prod.yml                      # 운영 서버 docker-compose
-├── Jenkinsfile                                  # CI/CD 파이프라인 (루트 필수)
+├── Jenkinsfile                                  # 메인 CI/CD 파이프라인 (커밋마다 실행)
+├── Jenkinsfile.security                         # ★ 야간 보안 풀스캔 (OWASP + Trivy, cron H 2 * * *)
 ├── pom.xml                                      # Maven 의존성 및 플러그인
 ├── .env.example                                 # 환경변수 템플릿 (Git 추적)
 ├── .editorconfig                                # 에디터 코드 스타일 통일
@@ -159,14 +165,40 @@ throw new BusinessException(ErrorCode.XXX); // GlobalExceptionHandler가 처리
 { "success": false, "error": { "code": "NOT_FOUND", "message": "..." } }
 ```
 
-### 이중 컨트롤러 패턴
+### 컨트롤러 구조 — REST API 중심 + Thymeleaf 샘플 격리
 
-각 도메인은 두 종류의 컨트롤러를 가진다.
+이 프로젝트의 **메인 인터페이스는 REST API** 이다. Thymeleaf 는 학습/예시 목적으로만 유지한다.
 
-| 위치 | 역할 | 반환 타입 |
+| 위치 | 역할 | 반환 타입 | 비고 |
+|---|---|---|---|
+| `interfaces/api/v1/{domain}/` | JSON REST API | `ApiResponse<T>` | 새 도메인은 여기에 추가 |
+| `interfaces/sample/web/` | Thymeleaf SSR 데모 | `String` (뷰 이름) | 신규 도메인 추가 X (샘플 영역) |
+
+새 기능 개발 시:
+- API 컨트롤러는 `interfaces/api/v1/{domain}/{Domain}ApiController.java`
+- 프론트엔드는 SPA(React/Vue) 별도 프로젝트가 이 REST API 를 호출하는 구조 권장
+
+### 데이터 액세스 — JPA + MyBatis 공존
+
+| 용도 | 사용 도구 | 위치 |
 |---|---|---|
-| `interfaces/api/v1/{domain}/` | JSON REST API | `ApiResponse<T>` |
-| `interfaces/web/{domain}/` | Thymeleaf 페이지 렌더링 | `String` (뷰 이름) |
+| 기본 CRUD, PK 조회, 단순 derived query | **JPA** (`JpaRepository`) | `domain/{domain}/repository/jpa/` |
+| 동적 WHERE, 다중 조인, 통계/리포트 쿼리 | **MyBatis** (`@Mapper` + XML) | `domain/{domain}/repository/mybatis/` + `resources/static/mybatis/mapper/` |
+
+엔티티는 `@Entity` (JPA) 와 `@Alias` (MyBatis) 를 동시에 가져 양쪽에서 모두 사용 가능.  
+두 방식 모두 같은 DataSource / 트랜잭션 매니저를 공유하므로 한 트랜잭션 안에서 섞어 써도 안전.
+
+```java
+@Service
+@RequiredArgsConstructor
+public class MemberServiceImpl implements MemberService {
+    private final MemberJpaRepository jpa;          // 기본 CRUD
+    private final MemberMybatisRepository mybatis;  // 동적 검색
+
+    public List<MemberResponseDto> findAll()           { return jpa.findAll()...; }       // ✅ JPA
+    public List<MemberResponseDto> search(...request)  { return mybatis.search(...)...; } // ✅ MyBatis
+}
+```
 
 ---
 
@@ -314,25 +346,39 @@ mvnw.cmd spotbugs:check
 
 ## 7. Jenkins 배포 파이프라인
 
-### 파이프라인 구조
+### 두 개의 파이프라인 — 빠른 빌드 + 야간 보안 스캔 분리
+
+| 파이프라인 | 트리거 | 소요 시간 | 포함 작업 |
+|---|---|---|---|
+| **`Jenkinsfile`** (메인) | 커밋 / 수동 | 2~5분 | 빌드 + 테스트 + SpotBugs + Docker + 배포 |
+| **`Jenkinsfile.security`** (보안) | cron `H 2 * * *` (매일 새벽 2시) | 20~40분 | OWASP Dependency Check + Trivy 풀스캔 |
+
+OWASP 스캔은 NVD 데이터베이스 매칭에 시간이 오래 걸려, 매 커밋마다 돌리면 CI 가 느려진다. → 야간 1회로 분리.
+
+### 메인 파이프라인 구조
 
 ```
 ① Checkout
-② Build & Test         (mvn clean package, JUnit 리포트)
+② Build & Test         (mvn clean package → target/app.jar, JUnit 리포트)
 ③ Code Quality         (Checkstyle)
-④ Security Scan        (OWASP Dependency Check + SpotBugs — 병렬 실행)
-⑤ Docker Build         (Docker 기반 방식만 실행)
-⑥ Image Security Scan  (Docker 기반 방식만 실행 — Trivy)
-⑦ Docker Hub Push      (dockerhub-compose, kubernetes만)
+④ SpotBugs Security    (소스 정적 분석 — 1분 내 완료)
+⑤ Docker Build         (Docker 기반 방식만)
+⑥ Image Security Scan  (Trivy 빠른 스캔 — Docker 기반 방식만)
+⑦ Docker Hub Push      (server-docker / server-k8s 만)
 ⑧ Deploy               (선택한 DEPLOY_METHOD 스테이지 1개만 실행)
 ```
 
-### Jenkins에서 실행하는 방법
+### Jenkins 에서 실행하는 방법
 
-1. Jenkins 파이프라인 Job 생성 → Pipeline script from SCM 설정
+**메인 파이프라인**:
+1. Jenkins 파이프라인 Job 생성 → Pipeline script from SCM, `Jenkinsfile` 지정
 2. **Build with Parameters** 클릭
 3. `DEPLOY_METHOD` 드롭다운에서 원하는 배포 방법 선택
 4. Build 시작
+
+**보안 파이프라인** (별도 Job):
+1. 신규 Pipeline Job 생성 → Pipeline script from SCM, `Jenkinsfile.security` 지정
+2. 저장 후 자동 cron 트리거 활성화 (매일 새벽 2시)
 
 ---
 
@@ -494,50 +540,73 @@ docker-compose --version  # 또는 docker compose version
 
 ---
 
-### `server-k8s` ★ — Kubernetes 클러스터 롤링 배포
+### `server-k8s` ★ — Kubernetes 롤링 배포 (Helm + ArgoCD GitOps)
 
-이미지를 빌드해 레지스트리에 Push하고 K8s 클러스터에 자동 배포한다.  
-**대규모/클라우드 SaaS 서비스의 현업 표준.**
+Docker 이미지를 레지스트리에 Push 한 뒤, **Jenkins 는 클러스터를 직접 건드리지 않는다**.  
+Helm Chart 의 `values-prod.yaml` 에서 `image.tag` 만 신규 빌드 번호로 교체해 Git 에 커밋·푸시 →  
+클러스터에 설치된 **ArgoCD 가 Git 변경을 감지해 자동 sync**.
+
+**워크플로우**
+
+```
+┌─ Jenkins ─┐         ┌─ Git Repo ─┐         ┌─ ArgoCD ─┐         ┌─ K8s ─┐
+│ 빌드 +    │  push   │ Helm Chart │ poll    │ 변경 감지 │  apply  │ 배포   │
+│ image.tag │ ──────► │ values.yaml│ ──────► │ + diff    │ ──────► │ 완료   │
+└───────────┘         └────────────┘         └───────────┘         └────────┘
+```
 
 **Jenkinsfile 수정 필요**
 
 ```groovy
-DOCKER_IMAGE   = "실제_도커허브_ID/spring-starter-maven"  // ← 변경
-K8S_NAMESPACE  = 'default'                               // ← 네임스페이스 변경 시
+DOCKER_IMAGE = "실제_도커허브_ID/spring-starter-maven"
+GIT_REPO_URL = 'https://github.com/실제_조직/SpringbootProject.git'
+GIT_BRANCH   = 'main'
 ```
 
-**k8s 매니페스트 수정 필요**
+**Helm values 수정 필요** (`deploy/helm/spring-app/values-prod.yaml`)
 
 ```yaml
-# deploy/k8s/configmap.yaml — 비민감 설정
-data:
+image:
+  repository: 실제_도커허브_ID/spring-starter-maven
+  # tag 는 Jenkins 가 빌드 번호로 자동 교체
+
+config:
   SPRING_PROFILES_ACTIVE: "prod"
-  DB_HOST: "실제_DB서버_IP"    # ← 변경
+  DB_HOST: "prod-db.internal"      # ← 운영 DB 호스트
   DB_PORT: "3306"
   DB_NAME: "SJSJSS"
 
-# deploy/k8s/secret.yaml — 민감 정보 (Base64 인코딩 또는 stringData 사용)
-stringData:
-  DB_USERNAME: "실제_계정명"    # ← 변경
-  DB_PASSWORD: "실제_비밀번호"  # ← 변경
+# secret 은 Git 평문 커밋 금지 — Sealed Secrets / External Secrets / Vault 사용 권장
+secret:
+  DB_USERNAME: "CHANGE_ME"
+  DB_PASSWORD: "CHANGE_ME"
+```
 
-# deploy/k8s/deployment.yaml
-containers:
-  - image: IMAGE_PLACEHOLDER   # Jenkins가 자동으로 실제 이미지로 치환
+**ArgoCD Application 등록** (`deploy/argocd/application-prod.yaml`) — 최초 1회만
+
+```bash
+# deploy/argocd/application-prod.yaml 안의 repoURL 을 실제 저장소로 수정 후
+kubectl apply -f deploy/argocd/application-prod.yaml
 ```
 
 **Jenkins Credentials 등록 (2개)**
 ```
 ① dockerhub-credentials (위와 동일)
 
-② kubeconfig
-   Jenkins 관리 → Credentials → Global → Add Credentials
-   Kind : Secret file
-   ID   : kubeconfig
-   File : ~/.kube/config 파일 업로드
+② git-push-token
+   Kind    : Username with password
+   ID      : git-push-token
+   Username: GitHub 사용자명
+   Password: Personal Access Token (repo 쓰기 권한)
 ```
 
-**결과물**: K8s 클러스터에서 롤링 업데이트, `LoadBalancer IP:80` 접속
+**장점**
+- Jenkins 가 클러스터 자격 증명을 보관할 필요 없음 (kubeconfig 불필요)
+- Git 이 단일 진실 공급원 — 누가 언제 무엇을 배포했는지 git log 로 추적
+- ArgoCD `selfHeal` 옵션으로 클러스터에서 누가 수동 수정해도 자동 복구
+
+**결과물**: K8s 클러스터에서 롤링 업데이트, `LoadBalancer IP:80` 접속  
+ArgoCD UI 또는 `argocd app get spring-app-prod` 로 sync 상태 확인
 
 ---
 

@@ -39,6 +39,18 @@ spring:
       # 활성화하면 기동 시 "Redis 연결 필요" 오류 발생
       - org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
 
+  # ── JPA / Hibernate 공통 설정 ──────────────────────────────────────────────
+  # 운영 안전 기본값. 프로파일에서 필요한 경우에만 override (local: show-sql=true, test: H2 방언)
+  jpa:
+    hibernate:
+      ddl-auto: validate     # 엔티티-DB 스키마 일치 여부만 검증. 자동 변경 금지
+    show-sql: false          # SQL 로그는 로컬에서만 켜기
+    open-in-view: false      # OSIV 끄기 — Lazy 로딩 사고를 컴파일 단계에서 노출
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MariaDBDialect
+
 
 # ── MyBatis 설정 ─────────────────────────────────────────────────────────────
 mybatis:

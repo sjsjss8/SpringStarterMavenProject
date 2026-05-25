@@ -1,0 +1,9 @@
+# 패키징 시 제외할 파일들 (.gitignore 와 같은 규칙)
+.DS_Store
+.git/
+.idea/
+.vscode/
+*.swp
+*.bak
+*.tmp
+*~

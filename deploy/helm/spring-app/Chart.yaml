@@ -1,0 +1,31 @@
+# ============================================================
+# Helm Chart 메타정보
+# ============================================================
+# 역할:
+#   Helm Chart 의 패키지 정보. helm install / helm package 가 이 파일을 읽는다.
+#
+# 사용:
+#   helm install spring-app deploy/helm/spring-app -f values-prod.yaml
+#   helm upgrade spring-app deploy/helm/spring-app -f values-prod.yaml
+#   helm package deploy/helm/spring-app   # tgz 패키지 생성
+# ============================================================
+
+apiVersion: v2
+name: spring-app
+description: Spring Boot 3.4 starter — JPA + MyBatis 공존, DDD 레이어드 아키텍처
+
+# 차트 종류
+#   application : 일반 배포용 차트 (이 프로젝트)
+#   library     : 다른 차트가 import 해서 사용하는 공유 템플릿
+type: application
+
+# 차트 버전 — Chart 자체의 버전 (values.yaml 구조나 templates 변경 시 증가)
+version: 0.1.0
+
+# 앱 버전 — Chart 가 배포하는 앱의 기본 버전 (image.tag 의 기본값으로 사용)
+# Jenkins 가 빌드 번호로 override 한다
+appVersion: "1.0"
+
+maintainers:
+  - name: SJSJSS
+    email: sangjin.yoo@initech.com

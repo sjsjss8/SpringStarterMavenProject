@@ -55,10 +55,11 @@ pipeline {
     결과 → 원격 서버에서 컨테이너 구동 (서버 IP:8080 접속)
     사전 조건 : dockerhub-credentials + deploy-server-ssh 등록
 
-  server-k8s  ★ 현업 표준 (대규모/클라우드/SaaS)  ⑤ 컨테이너 오케스트레이션
-    Docker 이미지를 빌드해 레지스트리에 올린 뒤 Kubernetes 클러스터에 자동 배포
+  server-k8s  ★ 현업 표준 (대규모/클라우드/SaaS)  ⑤ 컨테이너 오케스트레이션 (GitOps)
+    Docker 이미지를 레지스트리에 푸시 → Helm values-prod.yaml 의 image.tag 만 Git 에 커밋
+    → 클러스터의 ArgoCD 가 변경 감지해 자동 sync (kubectl apply 직접 호출 안 함)
     결과 → K8s 클러스터에서 롤링 업데이트 구동 (LoadBalancer IP:80 접속)
-    사전 조건 : dockerhub-credentials + kubeconfig Secret file 등록
+    사전 조건 : dockerhub-credentials + git-push-token + ArgoCD Application 등록
 
 ────────────────────────────────────────────────────────────────'''
         )
@@ -78,9 +79,9 @@ pipeline {
         // [server-docker / server-k8s] Docker Hub Credentials ID
         DOCKERHUB_CREDENTIALS = 'dockerhub-credentials'
 
-        // [server-k8s] kubeconfig Credentials ID & 네임스페이스
-        KUBECONFIG_CREDENTIALS = 'kubeconfig'
-        K8S_NAMESPACE          = 'default'
+        // [server-k8s] GitOps 워크플로우 — Helm values 파일을 Git 에 푸시하면 ArgoCD 가 sync
+        GIT_REPO_URL = 'https://github.com/your-org/SpringbootProject.git'   // ← 실제 Git 저장소 URL
+        GIT_BRANCH   = 'main'                                                // 푸시할 브랜치
 
         // [server-blue-green] Blue / Green 포트
         BLUE_PORT  = '8081'
@@ -137,45 +138,20 @@ pipeline {
             }
         }
 
-        // ④ 보안 취약점 스캔
-        stage('Security Scan') {
-            parallel {
-
-                // ── 보안 1: 라이브러리 CVE 취약점 검사 (OWASP Dependency Check)
-                stage('OWASP Dependency Check') {
-                    steps {
-                        sh '''
-                            mvn org.owasp:dependency-check-maven:check \
-                              -DfailBuildOnCVSS=7 \
-                              -DsuppressionFile=config/owasp-suppressions.xml \
-                              || true
-                        '''
-                    }
-                    post {
-                        always {
-                            archiveArtifacts(
-                                artifacts: 'target/dependency-check-report.html',
-                                allowEmptyArchive: true,
-                                fingerprint: false
-                            )
-                        }
-                    }
-                }
-
-                // ── 보안 2: 소스코드 보안 정적 분석 (SpotBugs + FindSecBugs)
-                stage('SpotBugs Security') {
-                    steps {
-                        sh 'mvn spotbugs:check -q || true'
-                    }
-                    post {
-                        always {
-                            archiveArtifacts(
-                                artifacts: '**/target/spotbugsXml.xml',
-                                allowEmptyArchive: true,
-                                fingerprint: false
-                            )
-                        }
-                    }
+        // ④ 보안 정적 분석 (빠른 검사만 인라인)
+        //   - SpotBugs + FindSecBugs : 수십 초 ~ 1분 → 매 빌드마다 실행
+        //   - OWASP Dependency Check : 10~30분 소요 → Jenkinsfile.security 로 분리해 야간 배치 실행
+        stage('SpotBugs Security') {
+            steps {
+                sh 'mvn spotbugs:check -q || true'
+            }
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: '**/target/spotbugsXml.xml',
+                        allowEmptyArchive: true,
+                        fingerprint: false
+                    )
                 }
             }
         }
@@ -625,11 +601,20 @@ pipeline {
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // [server-k8s] Kubernetes 클러스터에 롤링 배포
+        //   동작 방식: GitOps (ArgoCD 가 Git 상태를 클러스터에 자동 sync)
+        //     1. Jenkins 는 deploy/helm/spring-app/values-prod.yaml 의 image.tag 만 수정
+        //     2. 수정된 값을 Git 에 커밋·푸시
+        //     3. ArgoCD (별도 설치, deploy/argocd/application-prod.yaml 로 등록) 가
+        //        Git polling → 변경 감지 → Helm 렌더링 → kubectl apply 자동 수행
         //   사전 조건 :
+        //     - 클러스터에 ArgoCD 설치 완료 + deploy/argocd/application-prod.yaml 등록
         //     - Jenkins Credentials에 'dockerhub-credentials' (Username/Password) 등록
-        //     - Jenkins Credentials에 'kubeconfig' (Secret file: ~/.kube/config) 등록
-        //     - deploy/k8s/secret.yaml의 DB 접속 정보 실제 값으로 교체 후 커밋
-        //     - Jenkinsfile 상단 DOCKER_IMAGE에 실제 DockerHub ID 입력
+        //     - Jenkins Credentials에 'git-push-token' (Username/Token 또는 SSH Key) 등록
+        //     - Jenkinsfile 상단 DOCKER_IMAGE / GIT_REPO_URL / GIT_BRANCH 설정
+        //   장점:
+        //     - Jenkins → 클러스터 직접 접근 불필요 (kubeconfig 불필요)
+        //     - Git 이 단일 진실 공급원 (Single Source of Truth) → 감사/롤백 용이
+        //     - 클러스터에서 누가 수동 수정해도 ArgoCD 가 자동 복구 (selfHeal)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         stage('Deploy: server-k8s') {
             when {
@@ -638,38 +623,54 @@ pipeline {
             steps {
                 script {
                     try {
-                        withCredentials([file(
-                            credentialsId: "${KUBECONFIG_CREDENTIALS}",
-                            variable: 'KUBECONFIG_FILE'
+                        withCredentials([usernamePassword(
+                            credentialsId: 'git-push-token',
+                            usernameVariable: 'GIT_USER',
+                            passwordVariable: 'GIT_TOKEN'
                         )]) {
                             sh """
-                                export KUBECONFIG=\$KUBECONFIG_FILE
+                                set -e
+                                VALUES_FILE='deploy/helm/spring-app/values-prod.yaml'
 
-                                sed -i 's|IMAGE_PLACEHOLDER|${DOCKER_IMAGE}:${DOCKER_TAG}|g' deploy/k8s/deployment.yaml
+                                # 1. values-prod.yaml 의 image.tag 만 신규 빌드 번호로 교체
+                                #    image:
+                                #      tag: "42"     ← 이 부분만 수정
+                                #    (image.repository 등 다른 값은 건드리지 않음)
+                                sed -i -E 's|^(\\s*tag:).*|\\1 "${DOCKER_TAG}"|' \$VALUES_FILE
+                                echo "── 갱신된 image.tag ──"
+                                grep -A1 '^image:' \$VALUES_FILE
 
-                                kubectl apply -f deploy/k8s/secret.yaml     --namespace=${K8S_NAMESPACE}
-                                kubectl apply -f deploy/k8s/configmap.yaml  --namespace=${K8S_NAMESPACE}
-                                kubectl apply -f deploy/k8s/deployment.yaml --namespace=${K8S_NAMESPACE}
-                                kubectl apply -f deploy/k8s/service.yaml    --namespace=${K8S_NAMESPACE}
+                                # 2. Git 커밋 + 푸시 (작업 트리는 jenkins workspace 이므로 origin 푸시 OK)
+                                git config user.email 'jenkins@ci.local'
+                                git config user.name  'Jenkins CI'
 
-                                kubectl rollout status deployment/${APP_NAME} \\
-                                    --namespace=${K8S_NAMESPACE} \\
-                                    --timeout=180s
+                                git add \$VALUES_FILE
+                                if git diff --cached --quiet; then
+                                    echo '── image.tag 변경 없음 — 커밋 생략'
+                                else
+                                    git commit -m \"chore(deploy): bump prod image.tag to ${DOCKER_TAG} [skip ci]\"
+                                    # token 인증으로 푸시 (HTTPS 방식)
+                                    git push \"https://\$GIT_USER:\$GIT_TOKEN@\${GIT_REPO_URL#https://}\" HEAD:${GIT_BRANCH}
+                                    echo '✅ values-prod.yaml 푸시 완료 — ArgoCD 가 곧 sync'
+                                fi
 
-                                echo "✅ Kubernetes 배포 완료"
-                                kubectl get pods --namespace=${K8S_NAMESPACE} -l app=${APP_NAME}
-                                kubectl get svc  --namespace=${K8S_NAMESPACE} ${APP_NAME}
+                                # 3. ArgoCD 가 자동 sync 하므로 Jenkins 가 추가로 할 일은 없음
+                                #    (sync 진행 상황은 ArgoCD UI 또는 'argocd app get spring-app-prod' 로 확인)
+                                echo \"   ArgoCD 상태 확인: argocd app get spring-app-prod\"
                             """
                         }
                     } catch (Exception e) {
                         echo "⚠ server-k8s 배포 실패"
                         echo "  원인: ${e.message}"
                         echo "  ── 확인 사항 ──────────────────────────────────────"
-                        echo "  Jenkins 관리 → Credentials → Global → Add Credentials"
-                        echo "    Kind    : Secret file"
-                        echo "    ID      : kubeconfig"
-                        echo "    File    : ~/.kube/config 파일 업로드"
-                        echo "  deploy/k8s/secret.yaml DB 접속 정보 설정 확인"
+                        echo "  1. Jenkins Credentials 'git-push-token' 등록 확인"
+                        echo "       Kind    : Username with password"
+                        echo "       ID      : git-push-token"
+                        echo "       Username: GitHub 사용자명"
+                        echo "       Password: Personal Access Token (repo 쓰기 권한)"
+                        echo "  2. Jenkinsfile 상단 GIT_REPO_URL / GIT_BRANCH 값 설정"
+                        echo "  3. 클러스터에 ArgoCD Application 등록:"
+                        echo "       kubectl apply -f deploy/argocd/application-prod.yaml"
                         echo "  ───────────────────────────────────────────────────"
                         unstable("server-k8s 배포 실패: ${e.message}")
                     }

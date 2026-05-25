@@ -117,6 +117,24 @@
         </dependency>
 
         <!--
+          spring-boot-starter-data-jpa
+          Spring Data JPA + Hibernate(JPA 구현체) 포함 패키지.
+
+          JPA + MyBatis 공존 전략:
+            - 기본 CRUD / 단순 조회        → JpaRepository (인터페이스만 선언, 구현 자동 생성)
+            - 복잡한 동적 쿼리 / 통계/리포트 → MyBatis (XML에 SQL 직접 작성)
+
+          한 트랜잭션 안에서 두 방식을 함께 사용해도 같은 DataSource를 공유하기 때문에
+          데이터 정합성에 문제가 없다 (둘 다 Spring 트랜잭션 매니저 위에서 동작).
+
+          엔티티는 @Entity + MyBatis @Alias 를 동시에 가져 양쪽에서 모두 사용 가능.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!--
           mariadb-java-client
           MariaDB에 연결하기 위한 JDBC 드라이버.
           scope=runtime: 소스코드에서 직접 import하지 않고 Spring이 내부적으로 사용.

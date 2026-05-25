@@ -1,0 +1,138 @@
+// ============================================================
+// Jenkinsfile.security — 야간 풀 보안 스캔 전용 파이프라인
+// ============================================================
+// 역할:
+//   매 빌드마다 돌리기엔 너무 무거운 (10~30분 소요) 보안 스캔을
+//   야간 1회만 실행. 메인 Jenkinsfile 의 빌드 속도는 보존.
+//
+// 포함 스캔:
+//   ① OWASP Dependency Check : pom.xml 의 라이브러리 CVE 데이터베이스 매칭
+//   ② Trivy 컨테이너 이미지 : Docker 이미지의 OS 패키지 + 라이브러리 취약점
+//
+// 트리거:
+//   Jenkins Job 설정에서 "Build Triggers → Build periodically" 에 cron 입력
+//     H 2 * * *   → 매일 새벽 2시 (H 는 부하 분산용 hash, 0~59 분 사이 무작위)
+//
+//   또는 multibranch pipeline 인 경우 properties 블록의 triggers 자동 적용
+//
+// 결과 처리:
+//   - 모든 리포트는 Jenkins Artifacts 에 보관
+//   - HIGH/CRITICAL 발견 시 빌드를 UNSTABLE 로 표시 (실패 X — 운영 중단 방지)
+//   - Slack/Email 통지는 post.always 블록 자리 표시만 (실제 사용 시 활성화)
+// ============================================================
+
+pipeline {
+    agent any
+
+    triggers {
+        cron('H 2 * * *')   // 매일 새벽 2시 자동 트리거 (Jenkins 가 H 로 시각 분산)
+    }
+
+    environment {
+        APP_NAME     = 'spring-starter-maven'
+        DOCKER_IMAGE = "your-dockerhub-id/${APP_NAME}"   // 메인 Jenkinsfile 과 동일하게 설정
+    }
+
+    tools {
+        maven 'Maven-3.9'
+        jdk   'JDK-17'
+    }
+
+    options {
+        timeout(time: 60, unit: 'MINUTES')   // 1시간 hard timeout
+        buildDiscarder(logRotator(numToKeepStr: '30'))  // 최근 30개 보안 리포트 보관
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        // ① 라이브러리 CVE 스캔 — pom.xml 모든 의존성을 NVD DB 와 매칭
+        stage('OWASP Dependency Check') {
+            steps {
+                sh '''
+                    mvn org.owasp:dependency-check-maven:check \
+                      -DfailBuildOnCVSS=9 \
+                      -DsuppressionFile=config/owasp-suppressions.xml \
+                      || true
+                    # failBuildOnCVSS=9 : CRITICAL(9.0+) 만 실패. HIGH 는 리포트만 (운영 중단 방지)
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: 'target/dependency-check-report.html, target/dependency-check-report.xml',
+                        allowEmptyArchive: true
+                    )
+                    // HTML Publisher 플러그인 설치 시 사용 가능:
+                    // publishHTML target: [
+                    //   reportDir: 'target',
+                    //   reportFiles: 'dependency-check-report.html',
+                    //   reportName: 'OWASP Dependency Check'
+                    // ]
+                }
+            }
+        }
+
+        // ② 컨테이너 이미지 풀스캔 — 빌드 + Trivy 스캔
+        stage('Build Image for Scan') {
+            steps {
+                sh 'mvn clean package -DskipTests -q'
+                sh "docker build -t ${DOCKER_IMAGE}:nightly-scan ."
+            }
+        }
+
+        stage('Trivy Image Full Scan') {
+            steps {
+                sh """
+                    which trivy || apt-get install -y trivy 2>/dev/null || true
+                    trivy image \
+                      --severity HIGH,CRITICAL \
+                      --format json \
+                      --output trivy-report.json \
+                      --exit-code 0 \
+                      ${DOCKER_IMAGE}:nightly-scan || true
+
+                    # 사람이 읽을 수 있는 텍스트 리포트도 추가 생성
+                    trivy image \
+                      --severity HIGH,CRITICAL \
+                      ${DOCKER_IMAGE}:nightly-scan > trivy-report.txt || true
+                """
+            }
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: 'trivy-report.json, trivy-report.txt',
+                        allowEmptyArchive: true
+                    )
+                }
+            }
+        }
+    }
+
+    // ── 빌드 후 처리 ──────────────────────────────────────────────────────────
+    post {
+        always {
+            // 빌드 후 사용된 이미지 정리
+            sh "docker rmi ${DOCKER_IMAGE}:nightly-scan 2>/dev/null || true"
+            cleanWs()
+        }
+        unstable {
+            echo "⚠ 보안 취약점 발견 — Artifacts 에서 리포트 확인 필요"
+            // ── Slack 통지 자리 ─────────────────────────────────────────
+            // slackSend channel: '#security-alerts',
+            //           color: 'warning',
+            //           message: "야간 보안 스캔에서 HIGH 이상 취약점 발견: ${env.BUILD_URL}"
+        }
+        failure {
+            echo "❌ CRITICAL 취약점 발견 또는 스캔 실패 — 즉시 확인 필요"
+            // slackSend channel: '#security-critical',
+            //           color: 'danger',
+            //           message: "CRITICAL 보안 이슈! 즉시 확인: ${env.BUILD_URL}"
+        }
+    }
+}

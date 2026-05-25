@@ -1,0 +1,39 @@
+# ============================================================
+# 운영(prod) 환경 override
+# ============================================================
+# 사용:
+#   helm upgrade --install spring-app deploy/helm/spring-app \
+#     -f deploy/helm/spring-app/values-prod.yaml \
+#     --set image.tag=$BUILD_NUMBER \
+#     -n production
+# ============================================================
+
+replicaCount: 3                # 운영은 3대 이상 (장애 시 여유)
+
+image:
+  pullPolicy: IfNotPresent     # 빌드 번호 태그는 immutable 이므로 캐시 활용 가능
+
+service:
+  type: LoadBalancer           # 클라우드 LB 자동 발급
+  port: 80
+  targetPort: 8081
+
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+  limits:
+    memory: "2Gi"
+    cpu: "1000m"
+
+config:
+  SPRING_PROFILES_ACTIVE: "prod"
+  DB_HOST: "prod-db.internal"  # ← 실제 운영 DB 호스트
+  DB_PORT: "3306"
+  DB_NAME: "SJSJSS"
+
+# secret 값은 평문 커밋 금지 — ArgoCD + External Secrets 또는 CI 주입 사용
+# 아래는 자리 표시만 유지
+secret:
+  DB_USERNAME: "CHANGE_ME"
+  DB_PASSWORD: "CHANGE_ME"
