@@ -52,9 +52,17 @@ WORKDIR /app
 #   2. 잘 안 바뀌는 파일(pom.xml)을 먼저 COPY → 의존성 다운로드 레이어 캐시 재사용
 #
 # 결과: 소스만 바뀌면 의존성 재다운로드 없이 빌드 가능 → 빌드 시간 단축
-COPY .mvn/  .mvn/   # Maven Wrapper 설정 파일 복사 (.mvn/wrapper/maven-wrapper.properties)
-COPY mvnw   ./      # Maven Wrapper 실행 스크립트 복사
-RUN  chmod +x mvnw  # 실행 권한 부여 (Git checkout 과정에서 실행 권한이 제거될 수 있음)
+#
+# ⚠ BuildKit 은 COPY/ADD/RUN 줄 끝의 '#' 주석을 인자로 해석함 → 주석은 반드시 위쪽 별도 줄로.
+
+# Maven Wrapper 설정 파일 복사 (.mvn/wrapper/maven-wrapper.properties)
+COPY .mvn/  .mvn/
+
+# Maven Wrapper 실행 스크립트 복사
+COPY mvnw   ./
+
+# 실행 권한 부여 (Git checkout 과정에서 실행 권한이 제거될 수 있음)
+RUN  chmod +x mvnw
 
 COPY pom.xml ./
 # dependency:go-offline: pom.xml에 선언된 모든 의존성을 로컬 캐시(.m2)에 미리 다운로드
