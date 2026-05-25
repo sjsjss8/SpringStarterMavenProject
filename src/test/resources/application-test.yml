@@ -33,9 +33,12 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop   # 시작 시 스키마 생성, 종료 시 삭제 (테스트 격리)
+    database-platform: org.hibernate.dialect.H2Dialect
+    # dialect 는 Hibernate 가 자동 감지하지만, application.yml 의 MariaDBDialect 를
+    # 덮어쓰기 위해 database-platform 으로 명시 (deprecation 경고 없는 방식)
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect   # application.yml의 MariaDBDialect를 override
+        dialect: ~   # application.yml 의 값 비우기 (자동 감지로 위임)
 
 
 logging:

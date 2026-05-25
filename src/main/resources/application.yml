@@ -61,9 +61,13 @@ mybatis:
   # ⚠ static/ 하위에 두면 안 됨 — Spring Boot가 정적 리소스로 외부에 그대로 서빙되어
   #   SQL 쿼리와 DB 스키마가 노출됨. 반드시 static/ 바깥에 위치해야 함.
 
-  type-aliases-package: com.example.demo
+  type-aliases-package: com.example.demo.domain, com.example.demo.application
   # 이 패키지 하위 클래스는 XML에서 전체 경로 없이 클래스 이름만으로 참조 가능
   # 예: com.example.demo.domain.member.entity.Member → Member 로 축약
+  #
+  # ⚠ com.example.demo 루트로 잡으면 안 됨 — interfaces 패키지의 동일 이름 클래스
+  #   (예: v1/v2 의 MemberApiController) 가 별칭 충돌을 일으킴.
+  #   domain + application 만 스캔하면 충분 (Entity, DTO 가 여기 있음).
 
   configuration:
     map-underscore-to-camel-case: true
