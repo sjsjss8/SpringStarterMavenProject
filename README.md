@@ -340,15 +340,15 @@ mvnw.cmd spotbugs:check
 
 ### 배포 방법 선택 기준
 
-| 그룹 | DEPLOY_METHOD | 상황 |
+| 단계 | DEPLOY_METHOD | 상황 |
 |---|---|---|
-| **원격 서버** | `server-jar` | 원격 서버에 JAR만 SSH 배포 (가장 단순) |
-| **원격 서버** | `server-jar-zip` | 원격 서버에 전체 패키지(JAR+설정+스크립트) SSH 배포 ★ |
-| **원격 서버** | `server-blue-green` | 무중단 Blue/Green 배포 — Nginx 트래픽 순간 전환 ★ |
-| **원격 서버** | `server-docker` | Docker Hub → 원격 서버 docker-compose 배포 ★ |
-| **원격 서버** | `server-k8s` | Docker Hub → Kubernetes 클러스터 롤링 배포 ★ |
 | **고객사 납품** | `package-zip` | JAR + 설정 + 스크립트를 ZIP으로 패키징 |
-| **고객사 납품** | `package-docker` | Docker 이미지를 tar.gz로 저장해 ZIP으로 패키징 |
+| **고객사 납품** | `package-docker` | Docker 이미지를 tar.gz로 저장해 ZIP으로 패키징 (폐쇄망) |
+| **① 전통** | `server-jar` | 원격 서버에 JAR만 SSH 배포 (가장 단순) |
+| **② 전통+패키지** | `server-jar-zip` | 원격 서버에 전체 패키지(JAR+설정+스크립트) SSH 배포 ★ |
+| **③ 전통+무중단** | `server-blue-green` | Blue/Green 배포 — Nginx 트래픽 순간 전환, 자동 롤백 ★ |
+| **④ 컨테이너** | `server-docker` | Docker Hub → 원격 서버 docker-compose 배포 ★ |
+| **⑤ 오케스트레이션** | `server-k8s` | Docker Hub → Kubernetes 클러스터 롤링 배포 ★ |
 
 ---
 

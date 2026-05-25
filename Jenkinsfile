@@ -6,45 +6,15 @@ pipeline {
         choice(
             name: 'DEPLOY_METHOD',
             choices: [
+                'package-zip',
+                'package-docker',
                 'server-jar',
                 'server-jar-zip',
                 'server-blue-green',
                 'server-docker',
-                'server-k8s',
-                'package-zip',
-                'package-docker'
+                'server-k8s'
             ],
             description: '''── 배포 방법을 선택하세요 ──────────────────────────────────────────
-
-  [ 원격 서버에 배포 ]
-
-  server-jar
-    빌드된 JAR 파일을 SSH로 원격 서버에 전송 후 앱 재시작
-    결과 → 원격 서버에서 앱 구동 (서버 IP:8080 접속)
-    특징 : 가장 단순한 배포. 설정 파일은 서버에서 별도 관리
-    사전 조건 : deploy-server-ssh 등록 + REMOTE_HOST/USER/PATH 설정
-
-  server-jar-zip  ★ B2B 고객사 서버 자동 배포
-    온프레미스 ZIP 패키지(JAR + 설정 + 스크립트)를 SSH로 전송 후 자동 설치/업데이트
-    결과 → 원격 서버에서 app.jar + bin/ + mapper/ 업데이트, 앱 재시작
-    특징 : config/application.yml 은 최초 1회만 복사 (이후 업데이트 시 기존 설정 보존)
-    사전 조건 : deploy-server-ssh 등록 + REMOTE_HOST/USER/PATH 설정
-
-  server-blue-green  ★ 무중단 배포 (Zero-downtime)
-    Blue/Green 두 인스턴스를 번갈아 배포하고 Nginx가 트래픽을 순간 전환
-    결과 → 서비스 중단 없이 신규 버전으로 교체 (헬스체크 실패 시 자동 롤백)
-    특징 : Blue(8081) ↔ Green(8082) 포트 전환 방식. 현업 무중단 배포 표준
-    사전 조건 : deploy-server-ssh 등록 + Nginx 설치 + sudo 권한 설정
-
-  server-docker  ★ 현업 표준 (중소규모/SaaS)
-    Docker 이미지를 빌드해 Docker Hub에 올린 뒤 원격 서버에서 docker-compose로 실행
-    결과 → 원격 서버에서 컨테이너 구동 (서버 IP:8080 접속)
-    사전 조건 : dockerhub-credentials + deploy-server-ssh 등록
-
-  server-k8s  ★ 현업 표준 (대규모/클라우드/SaaS)
-    Docker 이미지를 빌드해 레지스트리에 올린 뒤 Kubernetes 클러스터에 자동 배포
-    결과 → K8s 클러스터에서 롤링 업데이트 구동 (LoadBalancer IP:80 접속)
-    사전 조건 : dockerhub-credentials + kubeconfig Secret file 등록
 
   [ 고객사 납품용 패키지 생성 ]
 
@@ -59,6 +29,36 @@ pipeline {
     결과 → {앱명}-{버전}-docker-release.zip (Jenkins Artifacts에서 다운로드)
     사용 : 인터넷 없는 폐쇄망 고객사 서버에서도 Docker만 있으면 즉시 설치 가능
     사전 조건 : Docker Engine 실행 중
+
+  [ 원격 서버 배포 — 전통 방식 → 현대화 순 ]
+
+  server-jar                          ① 전통 방식
+    빌드된 JAR 파일을 SSH로 원격 서버에 전송 후 앱 재시작
+    결과 → 원격 서버에서 앱 구동 (서버 IP:8080 접속)
+    특징 : 가장 단순한 배포. 설정 파일은 서버에서 별도 관리
+    사전 조건 : deploy-server-ssh 등록 + REMOTE_HOST/USER/PATH 설정
+
+  server-jar-zip  ★ B2B 고객사 서버 자동 배포  ② 전통 방식 + 패키지 자동화
+    온프레미스 ZIP 패키지(JAR + 설정 + 스크립트)를 SSH로 전송 후 자동 설치/업데이트
+    결과 → 원격 서버에서 app.jar + bin/ + mapper/ 업데이트, 앱 재시작
+    특징 : config/application.yml 은 최초 1회만 복사 (이후 업데이트 시 기존 설정 보존)
+    사전 조건 : deploy-server-ssh 등록 + REMOTE_HOST/USER/PATH 설정
+
+  server-blue-green  ★ 무중단 배포 (Zero-downtime)  ③ 전통 방식 + 무중단
+    Blue/Green 두 인스턴스를 번갈아 배포하고 Nginx가 트래픽을 순간 전환
+    결과 → 서비스 중단 없이 신규 버전으로 교체 (헬스체크 실패 시 자동 롤백)
+    특징 : Blue(8081) ↔ Green(8082) 포트 전환 방식. 현업 무중단 배포 표준
+    사전 조건 : deploy-server-ssh 등록 + Nginx 설치 + sudo 권한 설정
+
+  server-docker  ★ 현업 표준 (중소규모/SaaS)  ④ 컨테이너화
+    Docker 이미지를 빌드해 Docker Hub에 올린 뒤 원격 서버에서 docker-compose로 실행
+    결과 → 원격 서버에서 컨테이너 구동 (서버 IP:8080 접속)
+    사전 조건 : dockerhub-credentials + deploy-server-ssh 등록
+
+  server-k8s  ★ 현업 표준 (대규모/클라우드/SaaS)  ⑤ 컨테이너 오케스트레이션
+    Docker 이미지를 빌드해 레지스트리에 올린 뒤 Kubernetes 클러스터에 자동 배포
+    결과 → K8s 클러스터에서 롤링 업데이트 구동 (LoadBalancer IP:80 접속)
+    사전 조건 : dockerhub-credentials + kubeconfig Secret file 등록
 
 ────────────────────────────────────────────────────────────────'''
         )
