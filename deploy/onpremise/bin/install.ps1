@@ -32,8 +32,22 @@ if (-not (Test-Path $ConfigFile)) {
     exit 1
 }
 
+# java 실행 파일 찾기: PATH → JAVA_HOME\bin 순으로 탐색
+$javaExe = $null
+if (Get-Command java -ErrorAction SilentlyContinue) {
+    $javaExe = "java"
+} elseif ($env:JAVA_HOME -and (Test-Path "$env:JAVA_HOME\bin\java.exe")) {
+    $javaExe = "$env:JAVA_HOME\bin\java.exe"
+}
+
+if (-not $javaExe) {
+    Write-Host "[ERROR] Java not found in PATH or JAVA_HOME."
+    Write-Host "        Please install JDK 17+ and set JAVA_HOME or add java to PATH."
+    exit 1
+}
+
 try {
-    $javaVersion = (java -version 2>&1 | Select-String "version") -replace '.*"([\d.]+)".*', '$1'
+    $javaVersion = (& $javaExe -version 2>&1 | Select-String "version") -replace '.*"([\d.]+)".*', '$1'
     $javaMajor   = [int]($javaVersion -split '\.')[0]
     if ($javaMajor -lt 17) {
         Write-Host "[WARN]  Java 17+ recommended. Detected: $javaVersion"
@@ -41,8 +55,7 @@ try {
         Write-Host "[OK]    Environment check passed. Java $javaVersion"
     }
 } catch {
-    Write-Host "[ERROR] Java not found. Please install JDK 17 or higher."
-    exit 1
+    Write-Host "[WARN]  Could not determine Java version, continuing..."
 }
 Write-Host ""
 
