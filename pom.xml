@@ -62,7 +62,7 @@
 	<properties>
 		<java.version>17</java.version>                     <!-- 컴파일 타겟 JDK 버전 -->
 		<mapstruct.version>1.5.5.Final</mapstruct.version>  <!-- DTO ↔ Entity 변환 라이브러리 -->
-		<springdoc.version>2.3.0</springdoc.version>        <!-- Swagger UI 자동 생성 -->
+		<springdoc.version>2.7.0</springdoc.version>        <!-- Swagger UI 자동 생성 (Spring Boot 3.4.x 호환은 2.6.0+ 필요) -->
 	</properties>
 
     <!--

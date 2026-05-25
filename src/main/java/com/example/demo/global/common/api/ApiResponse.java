@@ -5,33 +5,53 @@ import java.util.List;
 import com.example.demo.global.error.ErrorCode;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(description = "모든 REST API 의 공통 응답 래퍼. 성공 시 `data`, 실패 시 `error` 가 채워진다.")
 public class ApiResponse<T> {
-    private boolean success; // 성공 여부
-    private T data; // 응답 데이터
-    private Error error; // 에러 정보 (에러 발생 시)
+
+    @Schema(description = "요청 성공 여부", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
+    private boolean success;
+
+    @Schema(description = "응답 데이터 (성공 시 채워짐, 실패 시 생략)")
+    private T data;
+
+    @Schema(description = "에러 정보 (실패 시 채워짐, 성공 시 생략)")
+    private Error error;
 
     @Getter
     @Builder
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Schema(description = "에러 상세")
     public static class Error {
-        private String code; // 에러 코드
-        private String message; // 상세 에러 메시지
-        private List<FieldError> errors; // 필드 에러 목록
+        @Schema(description = "에러 코드", example = "M001")
+        private String code;
+
+        @Schema(description = "에러 메시지", example = "존재하지 않는 회원입니다.")
+        private String message;
+
+        @Schema(description = "필드별 검증 에러 목록 (요청 DTO 검증 실패 시)")
+        private List<FieldError> errors;
     }
 
     @Getter
     @Builder
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Schema(description = "필드별 검증 에러")
     public static class FieldError {
-        private String field; // 에러 발생 필드
-        private String value; // 에러 값
-        private String reason; // 에러 이유
+        @Schema(description = "에러 발생 필드명", example = "email")
+        private String field;
+
+        @Schema(description = "요청에 담겨 온 잘못된 값", example = "not-an-email")
+        private String value;
+
+        @Schema(description = "에러 이유", example = "올바른 이메일 형식이 아닙니다.")
+        private String reason;
     }
 
     // 성공 응답 (200(OK), 201(Created), 204(No Content))
