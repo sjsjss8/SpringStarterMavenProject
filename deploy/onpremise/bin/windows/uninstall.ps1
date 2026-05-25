@@ -8,7 +8,7 @@
 $ErrorActionPreference = "SilentlyContinue"
 
 $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
-$AppDir     = Split-Path -Parent $ScriptDir
+$AppDir     = Split-Path -Parent (Split-Path -Parent $ScriptDir)   # bin\windows → bin → app root
 $PidFile    = Join-Path $AppDir "app.pid"
 $ConfigFile = Join-Path $AppDir "config\application.yml"
 

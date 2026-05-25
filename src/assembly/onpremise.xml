@@ -7,7 +7,7 @@
     mvn -f pom_onpremise.xml package 실행 시 생성될 ZIP 파일의
     내부 구조를 정의한다.
 
-  결과 ZIP 구조:
+  결과 ZIP 구조 (Apache Kafka 관례 - Linux: bin/, Windows: bin/windows/):
     spring-starter-maven-1.0/
     ├── app.jar                    ← Fat JAR (java -jar 로 바로 실행)
     ├── INSTALL.md                 ← 설치 가이드
@@ -17,13 +17,14 @@
     │   └── **/*.xml              ← MyBatis SQL (고객이 SQL 수정 시 편집)
     └── bin/
         ├── install.sh            ← Linux  최초 설치 자동화
-        ├── install.bat           ← Windows 최초 설치 자동화
         ├── start.sh              ← Linux  시작
-        ├── start.bat             ← Windows 시작
         ├── stop.sh               ← Linux  종료
-        ├── stop.bat              ← Windows 종료
         ├── uninstall.sh          ← Linux  제거
-        └── uninstall.bat         ← Windows 제거
+        └── windows/              ← Windows 전용 (Kafka 관례)
+            ├── install.bat / .ps1   ← Windows 최초 설치 자동화
+            ├── start.bat   / .ps1   ← Windows 시작
+            ├── stop.bat    / .ps1   ← Windows 종료
+            └── uninstall.bat / .ps1 ← Windows 제거
   ============================================================
 -->
 <assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
@@ -109,10 +110,10 @@
             <fileMode>0755</fileMode>
         </fileSet>
 
-        <!-- Windows 배치 래퍼 + PowerShell 스크립트 -->
+        <!-- Windows 배치 래퍼 + PowerShell 스크립트 (bin/windows/ 하위) -->
         <fileSet>
-            <directory>deploy/onpremise/bin</directory>
-            <outputDirectory>bin</outputDirectory>
+            <directory>deploy/onpremise/bin/windows</directory>
+            <outputDirectory>bin/windows</outputDirectory>
             <includes>
                 <include>*.bat</include>
                 <include>*.ps1</include>

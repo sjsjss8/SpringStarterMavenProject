@@ -3,7 +3,7 @@
 # ============================================================
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$AppDir    = Split-Path -Parent $ScriptDir
+$AppDir    = Split-Path -Parent (Split-Path -Parent $ScriptDir)   # bin\windows → bin → app root
 $AppJar    = Join-Path $AppDir "app.jar"
 $LogDir    = Join-Path $AppDir "logs"
 $PidFile   = Join-Path $AppDir "app.pid"

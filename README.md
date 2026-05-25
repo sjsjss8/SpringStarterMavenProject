@@ -97,8 +97,13 @@ SpringbootProject/
 │   │   └── secret.yaml                          #   민감 정보 (DB_PASSWORD 등)
 │   └── onpremise/                               #   B2B 고객사 설치형 패키지 소스
 │       ├── config/application.yml               #   고객사용 설정 템플릿
-│       ├── bin/start.sh, stop.sh               #   Linux 시작/종료 스크립트
-│       ├── bin/start.bat, stop.bat             #   Windows 시작/종료 스크립트
+│       ├── bin/                                 #   Linux / macOS 스크립트 (.sh)
+│       │   ├── install.sh / start.sh / stop.sh / uninstall.sh
+│       │   └── windows/                         #   Windows 스크립트 (.bat + .ps1)
+│       │       ├── install.bat / .ps1
+│       │       ├── start.bat   / .ps1
+│       │       ├── stop.bat    / .ps1
+│       │       └── uninstall.bat / .ps1
 │       ├── docker-compose.yml                   #   Docker 방식 고객사 설치용
 │       └── INSTALL.md                           #   고객사 전달용 설치 가이드
 │
@@ -522,30 +527,32 @@ JAR + 설정 파일 + SQL 매퍼 + 시작/종료 스크립트를 ZIP으로 패�
 **생성 파일**: `spring-starter-maven-1.0-release.zip`
 
 ```
-spring-starter-maven-1.0/
+spring-starter-maven-1.0/            (Apache Kafka 관례 — Linux: bin/, Windows: bin/windows/)
 ├── app.jar
 ├── config/
 │   └── application.yml     ← 고객이 DB 정보 입력
 ├── mapper/
 │   └── *.xml               ← SQL 수정 시 편집
-├── bin/
-│   ├── start.sh / stop.sh  ← Linux
-│   └── start.bat / stop.bat ← Windows
+├── bin/                    ← Linux / macOS
+│   ├── install.sh          ← 자동 설치 (DB 설정 + 서비스 등록)
+│   ├── start.sh / stop.sh / uninstall.sh
+│   └── windows/            ← Windows 전용
+│       ├── install.bat     ← 자동 설치 (DB 설정 + 앱 시작)
+│       ├── start.bat / stop.bat / uninstall.bat
+│       └── (*.ps1 — 각 .bat의 실제 로직 포함)
 └── INSTALL.md
 ```
 
 **고객사 설치 흐름**
 
 ```bash
-# Linux
+# Linux — 자동 설치
 unzip spring-starter-maven-1.0-release.zip
 cd spring-starter-maven-1.0
-nano config/application.yml    # DB 접속 정보 입력
-chmod +x bin/start.sh
-bin/start.sh
+bin/install.sh    # DB 정보 입력 → 설정 자동화 → 앱 시작
 
-# Windows
-# 탐색기로 ZIP 해제 → config\application.yml 편집 → bin\start.bat 더블클릭
+# Windows — 자동 설치
+# 탐색기로 ZIP 해제 → bin\windows\install.bat 더블클릭 → DB 정보 입력
 ```
 
 자세한 내용 → [deploy/onpremise/INSTALL.md](deploy/onpremise/INSTALL.md)
@@ -623,6 +630,9 @@ mybatis:
 > 직접 수정하고 앱만 재시작하면 반영된다 (JAR 재빌드 불필요).
 
 ### Linux 서비스 자동 시작 (systemd)
+
+`bin/install.sh`를 root로 실행하면 systemd 등록을 대화형으로 안내해 준다.  
+수동으로 등록하려면:
 
 ```bash
 sudo tee /etc/systemd/system/spring-app.service <<EOF

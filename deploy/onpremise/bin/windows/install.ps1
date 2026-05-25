@@ -2,14 +2,14 @@
 # install.ps1 -- First-time installation script (Windows)
 # ============================================================
 # Usage: Run install.bat (which calls this script)
-#        Or directly: powershell -ExecutionPolicy Bypass -File bin\install.ps1
+#        Or directly: powershell -ExecutionPolicy Bypass -File bin\windows\install.ps1
 # ============================================================
 
 $ErrorActionPreference = "Stop"
 
 # ── Path resolution ───────────────────────────────────────────────────────────
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$AppDir    = Split-Path -Parent $ScriptDir
+$AppDir    = Split-Path -Parent (Split-Path -Parent $ScriptDir)   # bin\windows → bin → app root
 $ConfigFile = Join-Path $AppDir "config\application.yml"
 $AppJar     = Join-Path $AppDir "app.jar"
 
@@ -161,8 +161,8 @@ Write-Host "  Log file    : $logsDir\application.log"
 Write-Host "  Config file : $ConfigFile"
 Write-Host ""
 Write-Host "  Management commands:"
-Write-Host "    Start   : bin\start.bat"
-Write-Host "    Stop    : bin\stop.bat"
-Write-Host "    Remove  : bin\uninstall.bat"
+Write-Host "    Start   : bin\windows\start.bat"
+Write-Host "    Stop    : bin\windows\stop.bat"
+Write-Host "    Remove  : bin\windows\uninstall.bat"
 Write-Host "  --------------------------------------------------"
 Write-Host ""

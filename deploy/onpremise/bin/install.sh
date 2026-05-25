@@ -178,7 +178,7 @@ echo "  앱 URL       : http://$(hostname -I | awk '{print $1}' 2>/dev/null || e
 echo "  로그 경로    : ${APP_DIR}/logs/application.log"
 echo "  설정 파일    : ${CONFIG_FILE}"
 echo ""
-echo "  ── 이후 관리 명령어 ──────────────────────────────────"
+echo "  ── 이후 관리 명령어 (Linux) ──────────────────────────"
 if [ "$SYSTEMD_INSTALLED" = true ]; then
 echo "  시작  : sudo systemctl start  spring-app"
 echo "  종료  : sudo systemctl stop   spring-app"
@@ -188,5 +188,6 @@ else
 echo "  시작  : bin/start.sh"
 echo "  종료  : bin/stop.sh"
 fi
+echo "  (Windows 사용자: bin\\windows\\start.bat / stop.bat)"
 echo "  ─────────────────────────────────────────────────────"
 echo ""

@@ -56,9 +56,16 @@ spring-starter-maven-{버전}/
 │   └── application.yml         ← ★ DB 접속 정보 편집 필요
 ├── mapper/
 │   └── *.xml                   ← SQL 매퍼 (필요 시 수정 가능)
-├── bin/
-│   ├── start.sh / start.bat    ← 시작 스크립트
-│   └── stop.sh  / stop.bat     ← 종료 스크립트
+├── bin/                        ← Linux / macOS 스크립트 (.sh)
+│   ├── install.sh              ← 최초 설치 (DB 설정 자동화)
+│   ├── start.sh                ← 앱 시작
+│   ├── stop.sh                 ← 앱 종료
+│   ├── uninstall.sh            ← 앱 제거
+│   └── windows/               ← Windows 스크립트 (.bat / .ps1)
+│       ├── install.bat         ← 최초 설치 (DB 설정 자동화)
+│       ├── start.bat           ← 앱 시작
+│       ├── stop.bat            ← 앱 종료
+│       └── uninstall.bat       ← 앱 제거
 └── INSTALL.md                  ← 이 파일
 ```
 
@@ -69,35 +76,33 @@ spring-starter-maven-{버전}/
 unzip spring-starter-maven-{버전}-release.zip -d /opt/
 cd /opt/spring-starter-maven-{버전}
 
-# 2. 스크립트 실행 권한 부여
-chmod +x bin/start.sh bin/stop.sh
+# 2. 스크립트 실행 권한 부여 (ZIP 해제 시 자동 설정됨, 혹시 안 된 경우)
+chmod +x bin/install.sh bin/start.sh bin/stop.sh bin/uninstall.sh
 
-# 3. 설정 파일 편집 (DB 접속 정보 입력)
-vi config/application.yml
-# 또는
-nano config/application.yml
+# 3. 자동 설치 스크립트 실행 (DB 설정 → 선택적 서비스 등록 → 앱 시작)
+bin/install.sh
 
-# 4. 설정 파일 권한 보호 (비밀번호 포함 파일)
-chmod 600 config/application.yml
+# 또는 수동 설치:
+# nano config/application.yml    # DB 접속 정보 직접 입력
+# chmod 600 config/application.yml
+# bin/start.sh
 
-# 5. 앱 시작
-bin/start.sh
-
-# 6. 30~60초 후 헬스체크
+# 4. 30~60초 후 헬스체크
 curl http://localhost:8080/actuator/health
 ```
 
 ### Windows 설치
 
-```cmd
-:: 1. 압축 해제 (탐색기 또는 명령어)
-:: 원하는 폴더에 ZIP을 해제하세요. 예: C:\app\spring-starter-maven-1.0.0\
+```powershell
+# 1. 압축 해제 (탐색기 또는 PowerShell)
+# 원하는 폴더에 ZIP을 해제하세요. 예: C:\app\spring-starter-maven-1.0.0\
 
-:: 2. 설정 파일 편집
-:: config\application.yml 을 메모장이나 VS Code로 열어 DB 정보 입력
+# 2. 자동 설치 스크립트 실행 (더블클릭 또는 PowerShell)
+bin\windows\install.bat   # DB 설정 → 앱 시작까지 자동화
 
-:: 3. 앱 시작 (더블클릭 또는 CMD)
-bin\start.bat
+# 또는 수동 설치:
+# config\application.yml 을 메모장이나 VS Code로 열어 DB 정보 직접 입력
+# bin\windows\start.bat
 ```
 
 ---
@@ -196,8 +201,8 @@ server:
 설정 변경 후에는 **반드시 앱을 재시작**해야 반영됩니다.
 
 ```bash
-bin/stop.sh && bin/start.sh     # Linux
-bin\stop.bat 실행 후 bin\start.bat 실행   # Windows
+bin/stop.sh && bin/start.sh               # Linux
+bin\windows\stop.bat → bin\windows\start.bat   # Windows (순서대로 실행)
 ```
 
 ---
@@ -208,9 +213,9 @@ bin\stop.bat 실행 후 bin\start.bat 실행   # Windows
 
 | 명령 | Linux | Windows |
 |---|---|---|
-| 시작 | `bin/start.sh` | `bin\start.bat` |
-| 종료 | `bin/stop.sh` | `bin\stop.bat` |
-| 강제 종료 | `bin/stop.sh --force` | `bin\stop.bat` |
+| 시작 | `bin/start.sh` | `bin\windows\start.bat` |
+| 종료 | `bin/stop.sh` | `bin\windows\stop.bat` |
+| 강제 종료 | `bin/stop.sh --force` | `bin\windows\stop.bat` |
 
 ### Docker 패키지
 
@@ -265,7 +270,7 @@ docker-compose logs --tail=100  # 최근 100줄
 
 3. **Java 버전 오류**: `UnsupportedClassVersionError` → JDK 17 이상 설치 필요
 
-4. **메모리 부족**: `OutOfMemoryError` → `start.sh`(또는 `start.bat`)의 `-Xmx` 값 조정
+4. **메모리 부족**: `OutOfMemoryError` → `bin/start.sh`(Linux) 또는 `bin\windows\start.ps1`(Windows)의 `-Xmx` 값 조정
 
 ### 서비스 자동 시작 설정 (Linux systemd)
 
@@ -282,6 +287,7 @@ User=appuser
 WorkingDirectory=/opt/spring-starter-maven
 ExecStart=/opt/spring-starter-maven/bin/start.sh
 ExecStop=/opt/spring-starter-maven/bin/stop.sh
+# ↑ Linux: bin/*.sh 경로 그대로 사용, Windows: bin\windows\*.bat 사용
 Restart=on-failure
 
 [Install]
