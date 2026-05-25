@@ -90,7 +90,7 @@
           (JAR 재빌드 불필요 — config/application.yml 의 file:./mapper/ 경로 참조)
         -->
         <fileSet>
-            <directory>src/main/resources/static/mybatis/mapper</directory>
+            <directory>src/main/resources/mybatis/mapper</directory>
             <outputDirectory>mapper</outputDirectory>
             <includes>
                 <include>**/*.xml</include>

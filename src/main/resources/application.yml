@@ -54,9 +54,12 @@ spring:
 
 # ── MyBatis 설정 ─────────────────────────────────────────────────────────────
 mybatis:
-  mapper-locations: classpath:/static/mybatis/mapper/**/*.xml
+  mapper-locations: classpath:/mybatis/mapper/**/*.xml
   # SQL이 작성된 XML 파일 위치. ** = 하위 모든 디렉터리, *.xml = 모든 XML 파일
   # classpath: = src/main/resources/ 디렉터리 기준
+  #
+  # ⚠ static/ 하위에 두면 안 됨 — Spring Boot가 정적 리소스로 외부에 그대로 서빙되어
+  #   SQL 쿼리와 DB 스키마가 노출됨. 반드시 static/ 바깥에 위치해야 함.
 
   type-aliases-package: com.example.demo
   # 이 패키지 하위 클래스는 XML에서 전체 경로 없이 클래스 이름만으로 참조 가능

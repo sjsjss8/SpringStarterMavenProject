@@ -90,10 +90,10 @@ SpringbootProject/
 │   │       ├── application-local.yml            # 로컬 개발 환경 (JPA show-sql on)
 │   │       ├── application-dev.yml              # 개발 서버
 │   │       ├── application-prod.yml             # 운영 서버
-│   │       ├── static/
-│   │       │   ├── css/, js/                    # 정적 리소스
-│   │       │   ├── spa/                         # ★ Vue 빌드 결과 (gitignore — mvn package 시 자동 생성)
-│   │       │   └── mybatis/mapper/**/*.xml      # MyBatis SQL 매퍼 (동적 쿼리만)
+│   │       ├── static/                          # 브라우저 직접 서빙 (HTML/CSS/JS/이미지)
+│   │       │   ├── css/, js/
+│   │       │   └── spa/                         # ★ Vue 빌드 결과 (gitignore — mvn package 시 자동 생성)
+│   │       ├── mybatis/mapper/**/*.xml          # ★ MyBatis SQL 매퍼 (static 밖 — 외부 노출 방지)
 │   │       └── templates/                       # Thymeleaf HTML 템플릿 (샘플용)
 │   │   └── frontend/                            # ★ Vue 3 SPA 소스 (Vite + TypeScript)
 │   │       ├── package.json / vite.config.ts
@@ -237,7 +237,7 @@ mvnw.cmd clean package
 | 용도 | 사용 도구 | 위치 |
 |---|---|---|
 | 기본 CRUD, PK 조회, 단순 derived query | **JPA** (`JpaRepository`) | `domain/{domain}/repository/jpa/` |
-| 동적 WHERE, 다중 조인, 통계/리포트 쿼리 | **MyBatis** (`@Mapper` + XML) | `domain/{domain}/repository/mybatis/` + `resources/static/mybatis/mapper/` |
+| 동적 WHERE, 다중 조인, 통계/리포트 쿼리 | **MyBatis** (`@Mapper` + XML) | `domain/{domain}/repository/mybatis/` + `resources/mybatis/mapper/` |
 
 엔티티는 `@Entity` (JPA) 와 `@Alias` (MyBatis) 를 동시에 가져 양쪽에서 모두 사용 가능.  
 두 방식 모두 같은 DataSource / 트랜잭션 매니저를 공유하므로 한 트랜잭션 안에서 섞어 써도 안전.
@@ -828,7 +828,7 @@ Postman import: `http://localhost:8081/api-docs` URL을 Postman의 Import에 붙
 □ domain/{domain}/service/        — 서비스 인터페이스
 □ domain/{domain}/service/impl/   — 서비스 구현체
 □ domain/{domain}/repository/mybatis/ — @Mapper 인터페이스
-□ resources/static/mybatis/mapper/{domain}/*.xml — SQL 매퍼
+□ resources/mybatis/mapper/{domain}/*.xml — SQL 매퍼 (static 밖!)
 ```
 
 ### 에러 추가 방법

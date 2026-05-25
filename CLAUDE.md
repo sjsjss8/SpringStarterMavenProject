@@ -58,7 +58,7 @@ DDD-based layered architecture. Packages map directly to layers:
 
 **Data Access — JPA + MyBatis coexistence:**
 - Default to **JPA** (`domain/{domain}/repository/jpa/{Domain}JpaRepository.java`) for basic CRUD, PK lookups, and simple derived queries.
-- Use **MyBatis** (`domain/{domain}/repository/mybatis/{Domain}MybatisRepository.java` + XML in `src/main/resources/static/mybatis/mapper/`) only for dynamic WHERE, complex joins, or report queries.
+- Use **MyBatis** (`domain/{domain}/repository/mybatis/{Domain}MybatisRepository.java` + XML in `src/main/resources/mybatis/mapper/`) only for dynamic WHERE, complex joins, or report queries.
 - Entities carry both `@Entity` (JPA) and `@Alias` (MyBatis) so they work in either layer.
 
 ## Profiles & Database
