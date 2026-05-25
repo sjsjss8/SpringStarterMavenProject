@@ -54,7 +54,8 @@ SpringbootProject/
 │   │   │   ├── interfaces/                      # ① 표현 계층
 │   │   │   │   ├── api/v1/{domain}/             #   ★ REST API 컨트롤러 (메인 인터페이스)
 │   │   │   │   ├── api/v2/                      #   향후 v2 API (scaffold)
-│   │   │   │   └── sample/web/{domain}/         #   Thymeleaf SSR 샘플 (학습용 격리)
+│   │   │   │   ├── sample/web/{domain}/         #   Thymeleaf SSR 샘플 (학습용 격리)
+│   │   │   │   └── spa/SpaWebMvcConfig.java     #   ★ Vue SPA 정적 리소스 + History fallback
 │   │   │   ├── application/                     # ② 응용 계층
 │   │   │   │   └── {domain}/
 │   │   │   │       ├── dto/request/             #   요청 DTO
@@ -87,8 +88,16 @@ SpringbootProject/
 │   │       ├── application-prod.yml             # 운영 서버
 │   │       ├── static/
 │   │       │   ├── css/, js/                    # 정적 리소스
+│   │       │   ├── spa/                         # ★ Vue 빌드 결과 (gitignore — mvn package 시 자동 생성)
 │   │       │   └── mybatis/mapper/**/*.xml      # MyBatis SQL 매퍼 (동적 쿼리만)
 │   │       └── templates/                       # Thymeleaf HTML 템플릿 (샘플용)
+│   │   └── frontend/                            # ★ Vue 3 SPA 소스 (Vite + TypeScript)
+│   │       ├── package.json / vite.config.ts
+│   │       └── src/
+│   │           ├── main.ts / App.vue / router/
+│   │           ├── views/                       #   HomeView, MemberListView
+│   │           ├── components/
+│   │           └── api/                         #   axios + memberApi
 │   └── test/
 │       └── resources/application-test.yml       # 테스트 환경 (H2, ddl-auto=create-drop)
 │
@@ -165,18 +174,40 @@ throw new BusinessException(ErrorCode.XXX); // GlobalExceptionHandler가 처리
 { "success": false, "error": { "code": "NOT_FOUND", "message": "..." } }
 ```
 
-### 컨트롤러 구조 — REST API 중심 + Thymeleaf 샘플 격리
+### 컨트롤러 구조 — REST API + Vue SPA + Thymeleaf 샘플 3-track
 
-이 프로젝트의 **메인 인터페이스는 REST API** 이다. Thymeleaf 는 학습/예시 목적으로만 유지한다.
+이 프로젝트는 **3가지 UI 진입점**을 명확히 분리해서 한 JAR 안에 통합한다.
 
-| 위치 | 역할 | 반환 타입 | 비고 |
-|---|---|---|---|
-| `interfaces/api/v1/{domain}/` | JSON REST API | `ApiResponse<T>` | 새 도메인은 여기에 추가 |
-| `interfaces/sample/web/` | Thymeleaf SSR 데모 | `String` (뷰 이름) | 신규 도메인 추가 X (샘플 영역) |
+| URL 경로 | 위치 | 역할 |
+|---|---|---|
+| `/api/v1/**` | `interfaces/api/v1/{domain}/` | **메인** — JSON REST API (`ApiResponse<T>`) |
+| `/spa/**` | `src/main/frontend/` (Vue 소스)<br>`interfaces/spa/SpaWebMvcConfig.java` (라우팅) | **★ Vue 3 SPA** — Vite 빌드 → 정적 리소스로 통합 |
+| `/`, `/sample/**` | `interfaces/sample/web/` + `templates/` | Thymeleaf SSR 데모 (학습용) |
 
-새 기능 개발 시:
-- API 컨트롤러는 `interfaces/api/v1/{domain}/{Domain}ApiController.java`
-- 프론트엔드는 SPA(React/Vue) 별도 프로젝트가 이 REST API 를 호출하는 구조 권장
+### Vue SPA 개발 흐름
+
+```bash
+# 1) 빠른 개발 (HMR) — Vite Dev 서버 5173 포트
+cd src/main/frontend
+npm install        # 최초 1회
+npm run dev        # http://localhost:5173 — /api/v1/** 는 Spring(8081)으로 자동 프록시
+
+# 2) 통합 빌드 — Maven 한 번에 처리
+mvnw.cmd clean package
+# → frontend-maven-plugin 이 Node + npm 자동 다운로드
+# → npm install + npm run build 실행
+# → 결과물이 src/main/resources/static/spa/ 로 출력
+# → Spring Boot JAR 에 그대로 패키징됨
+# → 운영 접속: http://서버:8081/spa/
+```
+
+### 세 가지 방식의 데이터 흐름 비교
+
+```
+[Thymeleaf]    Browser ──HTTP──► Server (Thymeleaf 렌더링) ──HTML──► Browser  (페이지마다 풀 라운드트립)
+[REST API]     SPA/외부 ──HTTP──► Server ──JSON──► SPA/외부
+[Vue SPA]      Browser ──HTTP──► index.html 1회 로드 → Vue Router → axios → /api/v1/** → JSON
+```
 
 ### 데이터 액세스 — JPA + MyBatis 공존
 

@@ -75,6 +75,20 @@ logs/              # 로그 디렉터리
 # 실제 credentials 는 .env (로컬) 또는 Jenkins Credentials / K8s Secret (서버) 로 주입
 
 
+# ── Frontend (Vue 3 + Vite SPA) ──────────────────────────────────────────────
+# src/main/frontend/ 는 Vue 소스 (Git 추적). 그 안의 빌드 산출물·node_modules 는 제외.
+src/main/frontend/node_modules/   # npm 의존성 (수백 MB) — package.json 만 추적
+src/main/frontend/dist/           # vite preview 용 임시 빌드 (보통 사용 안 함)
+src/main/frontend/.vite/          # Vite 캐시
+
+# Vue 빌드 결과물은 mvn package 때마다 새로 생성됨 → 추적 불필요
+src/main/resources/static/spa/
+
+# frontend-maven-plugin 이 받는 Node 실행 파일 (target 안이라 이미 제외되지만 명시)
+target/node/
+target/node_modules/
+
+
 # ── OS가 자동 생성하는 파일 ──────────────────────────────────────────────────
 .DS_Store          # macOS: 디렉터리 메타데이터 (정렬 순서, 아이콘 위치 등)
 .DS_Store?         # .DS_Store 변형

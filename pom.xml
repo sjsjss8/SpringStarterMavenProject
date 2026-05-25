@@ -428,6 +428,62 @@
             </plugin>
 
             <!--
+              ── frontend-maven-plugin: Vue 3 SPA 자동 빌드 ─────────────────
+              mvn package 실행 시 src/main/frontend/ 의 Vue 프로젝트를 자동으로 빌드.
+
+              동작 흐름:
+                1. Node.js + npm 을 자동 다운로드 (workingDirectory 안에 격리 — 시스템 설치 불필요)
+                2. npm install (의존성 다운로드, package-lock.json 기준)
+                3. npm run build (Vite 가 src/main/resources/static/spa/ 로 출력)
+                4. Spring Boot 가 빌드된 정적 리소스를 JAR 에 포함 → 단일 JAR 로 배포 완성
+
+              build 페이즈에 묶이므로 mvn clean install / mvn package 한 번이면 SPA 까지 다 빌드됨.
+              개발 중 SPA 만 빨리 돌리고 싶을 때는 src/main/frontend 에서 npm run dev 사용.
+            -->
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.15.0</version>
+                <configuration>
+                    <workingDirectory>src/main/frontend</workingDirectory>
+                    <installDirectory>target</installDirectory>  <!-- Node 다운로드 위치 (target/node, target/node_modules) -->
+                </configuration>
+                <executions>
+                    <!-- 1. Node + npm 다운로드 (없을 때만, 캐시됨) -->
+                    <execution>
+                        <id>install-node-and-npm</id>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                        <configuration>
+                            <nodeVersion>v20.11.1</nodeVersion>
+                            <npmVersion>10.2.4</npmVersion>
+                        </configuration>
+                    </execution>
+                    <!-- 2. npm install (의존성 설치) -->
+                    <execution>
+                        <id>npm-install</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>install</arguments>
+                        </configuration>
+                    </execution>
+                    <!-- 3. npm run build (Vite 빌드 → static/spa) -->
+                    <execution>
+                        <id>npm-build</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run build</arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
               ── OWASP Dependency Check: 라이브러리 보안 취약점(CVE) 검사 ────
               사용 중인 모든 의존성을 NVD(미국 국가 취약점 데이터베이스)와 비교.
               알려진 보안 취약점이 있는 버전의 라이브러리를 사용하면 경고/빌드 실패.

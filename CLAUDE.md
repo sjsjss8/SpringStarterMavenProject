@@ -25,6 +25,10 @@ mvnw.cmd clean package -DskipTests
 
 # Build onpremise ZIP (B2B delivery)
 mvnw.cmd clean package -Ponpremise
+
+# Vue SPA dev server (Hot Module Reload, port 5173)
+cd src/main/frontend && npm install && npm run dev
+# /api/v1/** auto-proxied to Spring Boot (8081). Open http://localhost:5173/.
 ```
 
 Swagger UI is available at `http://localhost:8081/swagger-ui.html` when running locally.
@@ -36,6 +40,7 @@ DDD-based layered architecture. Packages map directly to layers:
 | Package | Responsibility |
 |---|---|
 | `interfaces/api/v1/` | **Primary surface** — REST API controllers (return `ApiResponse<T>`) |
+| `interfaces/spa/` | Vue 3 SPA static-resource serving + Vue Router history-mode fallback |
 | `interfaces/sample/web/` | Thymeleaf SSR sample pages (kept as learning examples, not core flow) |
 | `application/` | Request/Response DTOs, MapStruct mappers |
 | `domain/` | Entities, service interfaces + `impl/`, **JPA + MyBatis** repositories |
