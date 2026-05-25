@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
  * 한 트랜잭션 안에서 섞어 쓰더라도 정합성 문제는 없다.</p>
  */
 @Entity
-@Table(name = "member")
+@Table(name = "Member")   // schema.sql 과 동일한 대문자 M (대소문자 구분 MariaDB 호환)
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

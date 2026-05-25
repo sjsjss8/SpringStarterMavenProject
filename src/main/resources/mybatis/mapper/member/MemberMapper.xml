@@ -19,7 +19,7 @@
             , name
             , email
         FROM
-            member
+            Member
         <where>
             <if test="searchKeyword != null and searchKeyword != ''">
                 <choose>
