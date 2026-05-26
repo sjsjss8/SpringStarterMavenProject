@@ -93,6 +93,17 @@
             spring.mvc.servlet.path: /api           # 모든 컨트롤러 prefix 추가
             spring.jackson.date-format: yyyy-MM-dd  # 날짜 직렬화 포맷
         -->
+        <!-- ── 자동 다운로드 라이브러리 (spring-boot-starter-web) ──────────
+              spring-webmvc          : DispatcherServlet, @Controller, @RequestMapping
+              spring-web             : HTTP 클라이언트, RestTemplate 기반
+              tomcat-embed-core      : 내장 Tomcat 서버
+              tomcat-embed-websocket : WebSocket 지원
+              jackson-databind       : 객체 ↔ JSON 변환 핵심
+              jackson-core           : JSON 파싱 엔진
+              jackson-annotations    : @JsonProperty, @JsonIgnore 등 어노테이션
+              jackson-datatype-jdk8  : Optional, LocalDate 등 Java8 타입 직렬화
+              spring-boot-starter    : spring-boot, spring-context, spring-aop 포함
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -114,6 +125,13 @@
           ── 간단 커스터마이징 ─────────────────────────────────────────────
             spring.thymeleaf.cache: false           # 로컬에서 템플릿 즉시 반영 (이미 적용)
             spring.thymeleaf.prefix: classpath:/views/   # 템플릿 위치 변경
+        -->
+        <!-- ── 자동 다운로드 라이브러리 (spring-boot-starter-thymeleaf) ────
+              thymeleaf                        : 템플릿 엔진 핵심 (파싱, 표현식 평가)
+              thymeleaf-spring6                : Spring 6 / Boot 3 통합 (ViewResolver, 폼 바인딩)
+              thymeleaf-extras-springsecurity6 : sec:authorize 등 Security 다이얼렉트
+                                                 (Spring Security 의존성이 있을 때만 활성화)
+              spring-boot-starter              : spring-boot, spring-context, spring-aop 포함
         -->
 	    <dependency>
 	        <groupId>org.springframework.boot</groupId>
@@ -141,6 +159,13 @@
             mybatis.mapper-locations: classpath:/static/mybatis/mapper/**/*.xml   # XML 위치
             mybatis.type-aliases-package: com.example.demo                       # 별칭 패키지
             mybatis.configuration.map-underscore-to-camel-case: true             # snake_case → camelCase
+        -->
+        <!-- ── 자동 다운로드 라이브러리 (mybatis-spring-boot-starter) ───────
+              mybatis                : MyBatis 핵심 (SqlSession, Mapper 프록시 생성)
+              mybatis-spring         : Spring 연동 브릿지 (SqlSessionFactoryBean, 트랜잭션 통합)
+              mybatis-spring-boot-autoconfigure : @Mapper 자동 스캔, SqlSessionFactory 자동 빈 등록
+              HikariCP               : 고성능 커넥션 풀 (spring-boot-starter-data-jpa 가 있으면 공유)
+              spring-boot-starter-jdbc : DataSource + JdbcTemplate 기반 (MyBatis 가 내부 사용)
         -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
@@ -175,6 +200,15 @@
             spring.jpa.properties.hibernate.format_sql: true # SQL 포맷팅
             spring.jpa.open-in-view: false                   # OSIV 끄기 (N+1 사고 예방)
         -->
+        <!-- ── 자동 다운로드 라이브러리 (spring-boot-starter-data-jpa) ─────
+              hibernate-core         : JPA 구현체 (EntityManager, JPQL/HQL 처리, 캐시)
+              jakarta.persistence-api: JPA 표준 어노테이션 (@Entity, @Table, @Column 등)
+              spring-data-jpa        : JpaRepository 인터페이스, 쿼리 메서드 자동 생성
+              spring-orm             : Spring-JPA 통합 (JpaTransactionManager, EntityManagerFactory)
+              HikariCP               : 고성능 커넥션 풀 (기본 DataSource)
+              spring-boot-starter-jdbc : DataSource + JdbcTemplate 기반
+              spring-aspects         : @Transactional AOP 처리
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -192,6 +226,12 @@
               → DataSource 빈을 HikariCP 커넥션 풀로 자동 생성
             - spring.datasource.url 의 jdbc:mariadb:// 접두사로 드라이버 클래스 자동 추론
               (driver-class-name 명시 불필요. 명시해도 무해)
+        -->
+        <!-- ── 자동 다운로드 라이브러리 (mariadb-java-client) ──────────────
+              mariadb-java-client : MariaDB / MySQL JDBC 드라이버 단일 JAR
+                                    (추가 전이 의존성 없음 — 드라이버 자체가 전부)
+                                    내부적으로 waffle-jna (Windows 인증), GSSAPI 등은
+                                    옵셔널이므로 기본 다운로드에는 포함되지 않음
         -->
 		<dependency>
 			<groupId>org.mariadb.jdbc</groupId>
@@ -279,6 +319,13 @@
             management.endpoint.health.show-details: when-authorized
             management.endpoint.health.probes.enabled: true   # K8s readiness/liveness 활성화
         -->
+        <!-- ── 자동 다운로드 라이브러리 (spring-boot-starter-actuator) ────
+              spring-boot-actuator               : /actuator/** 엔드포인트 구현체
+              spring-boot-actuator-autoconfigure : DataSource·Redis·JPA 등 연동 자동설정
+              micrometer-core                    : 메트릭 수집 추상화 (Counter, Timer, Gauge)
+              micrometer-observation             : 분산 추적(Tracing) 지원 기반
+              spring-boot-starter                : spring-boot, spring-context, spring-aop 포함
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
@@ -305,6 +352,18 @@
             @SpringBootTest @ActiveProfiles("test")          // → H2 인메모리 DB 자동 사용
             class MemberApplicationTests { ... }
         -->
+        <!-- ── 자동 다운로드 라이브러리 (spring-boot-starter-test) ─────────
+              junit-jupiter                    : JUnit 5 테스트 프레임워크 (API + 엔진)
+              mockito-core                     : Mock 객체 생성 / 동작 정의 / 호출 검증
+              mockito-junit-jupiter            : @ExtendWith(MockitoExtension.class) 지원
+              assertj-core                     : 유창한 단언문 (assertThat(...).isEqualTo(...))
+              spring-test                      : MockMvc, TestContext 프레임워크
+              spring-boot-test                 : @SpringBootTest, @MockBean, TestRestTemplate
+              spring-boot-test-autoconfigure   : 슬라이스 테스트 (@DataJpaTest, @WebMvcTest 등)
+              hamcrest                         : Matcher 라이브러리 (MockMvc 내부 사용)
+              jsonpath                         : JSON 경로 표현식 검증 ($.data.id 형태)
+              json-smart                       : jsonpath 가 내부적으로 사용하는 JSON 파서
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -323,6 +382,11 @@
               Spring Boot 가 자동으로 jdbc:h2:mem:testdb URL 의 DataSource 생성
             - JPA 와 함께 사용 시 spring.jpa.hibernate.ddl-auto: create-drop 가 기본값
               → 매 테스트마다 스키마 재생성 (테스트 격리 자동 보장)
+        -->
+        <!-- ── 자동 다운로드 라이브러리 (h2) ──────────────────────────────
+              h2 : 인메모리 관계형 DB 단일 JAR
+                   (JDBC 드라이버 + DB 엔진이 하나의 JAR에 포함, 추가 전이 의존성 없음)
+                   MODE=MariaDB 설정으로 MariaDB SQL 문법 모방 가능 → CI 환경에서 실 DB 불필요
         -->
         <dependency>
             <groupId>com.h2database</groupId>
