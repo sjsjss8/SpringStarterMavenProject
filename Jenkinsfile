@@ -125,26 +125,55 @@ pipeline {
             }
         }
 
-        // ② 빌드 & 테스트
-        stage('Build & Test') {
+        // ② 빌드 (컴파일 + 패키징, 테스트 제외)
+        stage('Build') {
             steps {
-                sh 'mvn clean package -q'
+                sh 'mvn clean package -DskipTests -q'
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'target/app.jar', fingerprint: true
+                }
+                failure {
+                    echo "❌ 빌드 실패 - 컴파일 오류 확인 필요"
+                }
+            }
+        }
+
+        // ③ 단위 테스트 (*Test.java, *Tests.java, *TestCase.java)
+        stage('Unit Test') {
+            steps {
+                sh 'mvn test -q'
             }
             post {
                 always {
                     junit allowEmptyResults: false,
                           testResults: '**/target/surefire-reports/*.xml'
                 }
-                success {
-                    archiveArtifacts artifacts: 'target/app.jar', fingerprint: true
-                }
                 failure {
-                    echo "❌ 빌드 실패 - 테스트 또는 컴파일 오류 확인 필요"
+                    echo "❌ 단위 테스트 실패 - surefire-reports 확인 필요"
                 }
             }
         }
 
-        // ③ 코드 품질 검사
+        // ④ 통합 테스트 (*IT.java, *ITCase.java, *IntegrationTest.java)
+        //    단위 테스트(surefire)는 건너뛰고 failsafe 플러그인만 실행
+        stage('Integration Test') {
+            steps {
+                sh 'mvn verify -DskipUnitTests -q'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true,
+                          testResults: '**/target/failsafe-reports/*.xml'
+                }
+                failure {
+                    echo "❌ 통합 테스트 실패 - failsafe-reports 확인 필요"
+                }
+            }
+        }
+
+        // ⑤ 코드 품질 검사
         stage('Code Quality') {
             steps {
                 sh 'mvn checkstyle:check -q || true'
@@ -160,7 +189,7 @@ pipeline {
             }
         }
 
-        // ④ 보안 정적 분석 (빠른 검사만 인라인)
+        // ⑥ 보안 정적 분석 (빠른 검사만 인라인)
         //   - SpotBugs + FindSecBugs : 수십 초 ~ 1분 → 매 빌드마다 실행
         //   - OWASP Dependency Check : 10~30분 소요 → Jenkinsfile.security 로 분리해 야간 배치 실행
         stage('SpotBugs Security') {
